@@ -395,26 +395,3 @@ trait IAtomiqBridge<TContractState> {
     fn get_relayer(self: @TContractState) -> ContractAddress;
 }
 
-/// Integration Notes:
-/// 
-/// 1. Atomiq Protocol Integration:
-///    - This contract serves as a wrapper around Atomiq's BTC bridge
-///    - Actual implementation requires Atomiq SDK integration
-///    - Bitcoin transaction verification happens through Atomiq's relayers
-/// 
-/// 2. Security Considerations:
-///    - Bridge completion should be called only by authorized Atomiq relayers
-///    - Bitcoin transaction proofs should be verified
-///    - Rate limiting should be implemented for bridge operations
-/// 
-/// 3. User Flow:
-///    - User sends BTC to Atomiq's Bitcoin address
-///    - User calls initiate_bridge() with transaction hash
-///    - Atomiq relayer verifies and completes bridge
-///    - WBTC is minted and either sent to user or auto-deposited to vault
-/// 
-/// 4. Future Enhancements:
-///    - Multi-signature verification for large amounts
-///    - Time-locked withdrawals for security
-///    - Cross-chain state verification
-///    - Emergency pause mechanism
