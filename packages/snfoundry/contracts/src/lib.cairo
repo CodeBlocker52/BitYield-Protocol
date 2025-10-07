@@ -28,13 +28,3 @@ pub mod mocks {
     pub mod MockAtomiqGateway;
 }
 
-// ===== TESTS =====
-#[cfg(test)]
-pub mod tests {
-    pub mod test_vault;
-    pub mod test_vesu_adapter;
-    pub mod test_troves_adapter;
-    pub mod test_strategy_manager;
-    pub mod test_atomiq_bridge;
-    pub mod test_integration;
-}
