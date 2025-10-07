@@ -1,361 +1,514 @@
-# 🏗 Scaffold-Stark
+# BitYield Protocol - Bitcoin Native Yield Aggregator on Starknet
 
-<h4 align="center">
-  <a href="https://docs.scaffoldstark.com/">Documentation</a> |
-  <a href="https://scaffoldstark.com/">Website</a> |
-  <a href="https://scaffold-stark-demo.vercel.app/debug">Demo</a>
-</h4>
+**BitYield Protocol** enables Bitcoin holders to earn DeFi yields on Starknet without complex bridging or wrapping processes. One-click Bitcoin → Starknet yield farming with automated optimization across multiple protocols.
 
-🧪 An open-source, up-to-date toolkit for building decentralized applications (dapps) on Starknet blockchain. It's designed to make it easier for developers to create and deploy smart contracts and build user interfaces that interact with those contracts.
+---
 
-⚙️ Built using NextJS, Starknet.js, Scarb, Starknet-React, Starknet Foundry.
+## 🎯 Problem & Solution
 
-- ✅ **Contract Fast Reload**: Your frontend auto-adapts to your smart contracts as you deploy them.
-- 🪝 [**Custom hooks**](https://docs.scaffoldstark.com/hooks/): Collection of React hooks wrapper around [starknet-react](https://starknet-react.com/) to simplify interactions with smart contracts with typescript autocompletion.
-- 🧱 [**Components**](https://docs.scaffoldstark.com/components): Collection of common web3 components to quickly build your frontend.
-- 🔥 **Burner Wallet & Prefunded Account**: Quickly test your application with a burner wallet and prefunded accounts.
-- 🔐 **Integration with Wallet Providers**: Connect to different wallet providers and interact with Starknet network.
+### Problem
+Bitcoin holders cannot easily access DeFi yields without:
+- Understanding complex bridging mechanisms
+- Manually wrapping BTC to WBTC
+- Navigating multiple DeFi protocols
+- Managing rebalancing strategies
 
-![Debug Contracts tab](./packages/nextjs/public/debug-image.png)
+### Solution
+BitYield provides:
+- ✅ **One-click Bitcoin deposits** via Atomiq integration
+- ✅ **Automatic WBTC conversion** on Starknet
+- ✅ **Yield optimization** across Vesu lending markets and Troves strategies
+- ✅ **Automated rebalancing** via Cairo smart contracts
+- ✅ **Xverse wallet integration** for seamless UX
 
-## 0. Requirements
+---
 
-Before you begin, you need to install the following tools:
+## 🏗️ Architecture
 
-- [Node (>= v22)](https://nodejs.org/en/download/)
-- Yarn ([v1](https://classic.yarnpkg.com/en/docs/install/) or [v2+](https://yarnpkg.com/getting-started/install))
-- [Git](https://git-scm.com/downloads)
-
-## 1. Install developer tools
-
-You can install the developer tools natively or use Dev Containers.
-
-### Option 1: Natively install developer tools
-
-#### 1.1 Starkup
-
-Tool for installing all the Starknet essentials for development. [Starkup](https://github.com/software-mansion/starkup) will install the latest stable versions of:
-
-- [Scarb](https://docs.swmansion.com/scarb/) - Cairo package manager and build toolchain
-- [Starknet Foundry](https://foundry-rs.github.io/starknet-foundry/index.html) - Development toolchain for testing on Starknet
-- [asdf](https://asdf-vm.com/guide/getting-started.html) - Version manager to easily switch between tool versions
-- [Cairo 1.0 extension](https://marketplace.visualstudio.com/items?itemName=starkware.cairo1) for VSCode - Syntax highlighting and language support
-- [Starknet Devnet](https://0xspaceshard.github.io/starknet-devnet/) - Starknet Devnet
-
-To install `starkup`, run the following command:
-
-```sh
-curl --proto '=https' --tlsv1.2 -sSf https://sh.starkup.sh | sh
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     USER INTERFACE LAYER                     │
+│         (React/TypeScript + Xverse + Starknet.js)          │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────────┐
+│                  BITCOIN BRIDGE LAYER                        │
+│  ┌──────────────┐         ┌─────────────────┐              │
+│  │ Xverse Wallet│◄───────►│ Atomiq Protocol │              │
+│  │   (BTC L1)   │         │  (BTC→WBTC)     │              │
+│  └──────────────┘         └─────────────────┘              │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────────┐
+│              BITYIELD CORE CONTRACTS (Cairo)                 │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │         BitYieldVault.cairo (Main Vault)             │  │
+│  │  • ERC20 Share Tokens (byWBTC)                       │  │
+│  │  • Deposit/Withdraw Logic                            │  │
+│  │  • Fee Collection (Performance + Management)         │  │
+│  │  • Emergency Controls                                 │  │
+│  └────────────┬─────────────────────────────────────────┘  │
+│               │                                              │
+│  ┌────────────▼─────────────────┬───────────────────────┐  │
+│  │    VesuAdapter.cairo         │ TrovesAdapter.cairo   │  │
+│  │  • Multi-pool management     │ • Liquid staking      │  │
+│  │  • Lending deposits          │ • Strategy execution  │  │
+│  │  • Interest accrual          │ • Yield compounding   │  │
+│  └──────────────────────────────┴───────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────────┐
+│                 PROTOCOL INTEGRATION LAYER                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────┐  │
+│  │ Vesu Markets │  │    Troves    │  │  Endurfi (TBD)  │  │
+│  │   (Lending)  │  │  (Staking)   │  │   (Strategies)  │  │
+│  └──────────────┘  └──────────────┘  └─────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-#### 1.2 Create your project
+---
 
-Open a terminal and run the following command:
+## 📦 Contract Architecture
 
+### Core Contracts
+
+#### 1. **BitYieldVault.cairo**
+The main ERC4626-compliant vault contract managing user deposits and withdrawals.
+
+**Key Features:**
+- ERC20 share tokens (byWBTC) representing vault ownership
+- Deposit WBTC, receive byWBTC shares
+- Withdraw by burning byWBTC shares
+- Automated fee collection (performance + management)
+- Emergency pause/unpause functionality
+- Owner-controlled rebalancing
+
+**State Variables:**
+```cairo
+asset: ContractAddress              // WBTC token
+total_assets_deposited: u256        // Total WBTC deposited
+strategy_manager: ContractAddress   // Strategy orchestration
+vesu_adapter: ContractAddress       // Vesu integration
+troves_adapter: ContractAddress     // Troves integration
+performance_fee_bps: u32            // Performance fee (basis points)
+management_fee_bps: u32             // Management fee (basis points)
+fee_recipient: ContractAddress      // Fee collection address
+```
+
+**Key Functions:**
+- `deposit(assets: u256) -> u256`: Deposit WBTC, receive byWBTC shares
+- `withdraw(shares: u256) -> u256`: Burn shares, receive WBTC
+- `total_assets() -> u256`: Total value locked (TVL)
+- `rebalance(vesu_bps: u32, troves_bps: u32)`: Rebalance allocations
+- `collect_fees()`: Collect accrued fees
+- `emergency_withdraw()`: Pull all funds from strategies
+
+#### 2. **VesuAdapter.cairo**
+Manages deposits/withdrawals to Vesu lending pools.
+
+**Key Features:**
+- Multi-pool support (different Vesu markets)
+- ERC4626 vToken integration
+- Pool weight management
+- Emergency withdrawal per pool
+
+**Key Functions:**
+- `add_pool(pool_id: felt252, v_token: ContractAddress)`: Add Vesu pool
+- `deposit(pool_id: felt252, assets: u256) -> u256`: Deposit to pool
+- `withdraw(pool_id: felt252, assets: u256) -> u256`: Withdraw from pool
+- `get_total_assets() -> u256`: Total deposited across pools
+- `get_pool_balance(pool_id: felt252) -> u256`: Balance in specific pool
+
+#### 3. **TrovesAdapter.cairo** *(To be implemented)*
+Integration with Troves/Endurfi for liquid staking strategies.
+
+**Planned Features:**
+- Liquid staking deposit/withdrawal
+- Reward claiming and compounding
+- Strategy optimization
+
+---
+
+## 👤 User Flow
+
+### For Bitcoin Holders
+
+```
+1. Connect Xverse Wallet
+   ↓
+2. Initiate Bitcoin Deposit
+   ↓
+3. Atomiq Bridges BTC → WBTC (Starknet)
+   ↓
+4. User Approves WBTC to BitYield Vault
+   ↓
+5. Vault Deposits WBTC, Mints byWBTC Shares
+   ↓
+6. Vault Automatically Deploys to Vesu/Troves
+   ↓
+7. Yield Accrues (Lending Interest + Staking Rewards)
+   ↓
+8. User Withdraws: Burn byWBTC → Receive WBTC
+   ↓
+9. Optional: Bridge WBTC → BTC via Atomiq
+```
+
+### For Vault Operators
+
+```
+1. Monitor Pool Yields (Vesu vs Troves)
+   ↓
+2. Call rebalance() to Optimize Returns
+   ↓
+3. Collect Performance + Management Fees
+   ↓
+4. Emergency: Pause vault or emergency_withdraw()
+```
+
+---
+
+## 🚀 Installation & Setup
+
+### Prerequisites
+- **Scarb** (Cairo package manager): [Install Scarb](https://docs.swmansion.com/scarb/)
+- **Starknet Foundry** (Testing framework): [Install SNFoundry](https://foundry-rs.github.io/starknet-foundry/)
+- **Node.js** v18+ (for frontend integration)
+
+### Clone Repository
 ```bash
-npx create-stark@latest
-cd my-dapp-example
-yarn install
+git clone https://github.com/your-repo/bityield-protocol
+cd bityield-protocol
 ```
 
-Now you have a new project with the basic structure.
-
-#### 1.3 Troubleshooting
-
-- If you run into version errors after using `starkup` or `asdf`, you can try to install the dependencies manually. Check the details below.
-
-<details>
-
-#### Installing with ASDF
-
-Using ASDF, you can install the required dependencies of Scaffold Stark 2 in a single command. You can do so by doing
-
+### Install Dependencies
 ```bash
-asdf install
+scarb build
 ```
 
-You can refer to the guide of manual installation of asdf [here](https://asdf-vm.com/guide/getting-started.html).
+---
 
-#### Scarb version
+## 🧪 Testing
 
-To ensure the proper functioning of scaffold-stark, your `Scarb` version must be `2.12.0`. To accomplish this, first check Scarb version:
-
-```sh
-scarb --version
-```
-
-If your `Scarb` version is not `2.12.0`, you need to install it. If you already have installed `Scarb` via `starkup`, you can setup this specific version with the following command:
-
-```sh
-asdf install scarb 2.12.0 && asdf set scarb 2.12.0
-```
-
-Otherwise, you can install Scarb `2.12.0` following the [instructions](https://docs.swmansion.com/scarb/download.html#install-via-asdf).
-
-#### Starknet Foundry version
-
-To ensure the proper functioning of the tests on scaffold-stark, your `Starknet Foundry` version must be `0.49.0`. To accomplish this, first check your `Starknet Foundry` version:
-
-```sh
-snforge --version
-```
-
-If your `Starknet Foundry` version is not `0.49.0`, you need to install it. If you already have installed `Starknet Foundry` via `starkup`, you can setup this specific version with the following command:
-
-```sh
-asdf install starknet-foundry 0.49.0 && asdf set starknet-foundry 0.49.0
-```
-
-Otherwise, you can install Starknet Foundry `0.49.0` following the [instructions](https://foundry-rs.github.io/starknet-foundry/getting-started/installation.html#installation-via-asdf).
-
-#### Starknet-devnet version
-
-To ensure the proper functioning of scaffold-stark, your `starknet-devnet` version must be `0.5.1`. To accomplish this, first check your `starknet-devnet` version:
-
-```sh
-starknet-devnet --version
-```
-
-If your `starknet-devnet` version is not `0.5.1`, you need to install it.
-
-- Install starknet-devnet `0.5.1` via `asdf` ([instructions](https://github.com/gianalarcon/asdf-starknet-devnet/blob/main/README.md)).
-
-</details>
-
-### Option 2. Dev Containers
-
-#### 2.1 Install Docker Desktop
-
-As an alternative to installing the tools locally (Scarb, Starknet Foundry, Starknet Devnet), you can use Docker, this is the recommended option for `Windows` users. Here's what you need to do:
-
-1. Install [Docker Desktop](https://www.docker.com/get-started/)
-2. Install [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-3. Create a new project folder.
-
-- `npx create-stark@latest`
-- `cd my-dapp-example`
-
-4. Check your project folder contains a `devcontainer.json` file. This file is used to set up the environment:
-
-- The configuration uses the `starknetfoundation/starknet-dev:2.12.0` image.
-- This includes all required tools pre-installed, such as Scarb, Starknet Foundry, Starknet Devnet and other dependencies.
-
-#### 2.2 Getting Started with Docker Setup
-
-To start using the Docker-based setup:
-
-1. Open the project in **Visual Studio Code**.
-2. Select **"Reopen in Container"**.
-3. If you need to rebuild the container, open the Command Palette (**View -> Command Palette**) and choose:
-   - **Dev Containers: Rebuild and Reopen in Container**
-
-> Once inside the container, you can start working with all the tools and dependencies pre-configured.
-
-Now you are ready!!!
-
-## Compatible versions
-
-- Starknet-devnet - 0.5.1
-- Scarb - v2.12.0
-- Snforge - v0.49.0
-- Cairo - v2.12.0
-- Rpc - v0.9.x
-
-## Quickstart 1: Deploying a Smart Contract to Starknet-Devnet
-
-To get started with Scaffold-Stark, follow the steps below:
-
-1. Install the latest version of Scaffold-Stark
-
+### Run All Tests
 ```bash
-npx create-stark@latest
-cd my-dapp-example
-yarn install
+snforge test
 ```
 
-2. Run a local network in the first terminal.
-
+### Run Specific Test
 ```bash
-yarn chain
+snforge test test_deposit
 ```
 
-> To run a fork : `yarn chain --fork-network <URL> [--fork-block <BLOCK_NUMBER>]`
-
-This command starts a local Starknet network using Devnet. The network runs on your local machine and can be used for testing and development. You can customize the network configuration in `scaffold.config.ts` for your nextjs app.
-
-3. On a second terminal, deploy the sample contract:
-
+### Run with Detailed Output
 ```bash
-yarn deploy
+snforge test -v
 ```
 
-This command deploys a sample smart contract to the local network. The contract is located in `packages/snfoundry/contracts/src` and can be modified to suit your needs. The `yarn deploy` command uses the deploy script located in `packages/snfoundry/scripts-ts/deploy.ts` to deploy the contract to the network. You can also customize the deploy script.
-
-By default `Scaffold-Stark` takes the first prefunded account from `starknet-devnet` as a deployer address,
-
-4. On a third terminal, start your NextJS app:
-
+### Test Coverage
 ```bash
-yarn start
+snforge test --coverage
 ```
 
-Visit your app on: `http://localhost:3000`. You can interact with your smart contract using the `Debug Contracts` page.
+### Expected Tests
+- ✅ `test_deposit`: Verify WBTC deposit and byWBTC minting
+- ✅ `test_withdraw`: Verify share burning and WBTC withdrawal
+- ✅ `test_total_assets`: Check TVL calculation
+- ✅ `test_convert_shares_to_assets`: Test share price calculation
+- ✅ `test_deposit_zero_amount`: Ensure zero deposits fail
+- ✅ `test_withdraw_insufficient_shares`: Ensure insufficient balance fails
+- ✅ `test_pause_unpause`: Verify emergency pause functionality
 
-5. Check your environment variables. We have a `yarn postinstall` script that will create `.env` files based on the `.env.example` files provided. If the environment variables don't exist, you can manually create a `.env` file from the `.env.example` to get the app running!
+---
 
-> ⚠️ **IMPORTANT**: Never commit your private keys or sensitive environment variables to version control. The `.env` files are included in `.gitignore` by default, but always double-check before pushing your changes.
+## 📡 Deployment
 
-## Quickstart 2: Deploying a Smart Contract to Sepolia Testnet
+### 1. Deploy on Testnet (Sepolia)
 
-<details>
-
-1. Make sure you already cloned this repo and installed dependencies.
-
-2. Prepare your environment variables.
-
-Find the `packages/snfoundry/.env` file and fill the env variables related to Sepolia testnet with your own wallet account contract address and private key. Find the `packages/nextjs/.env` file and fill the env variable related to Sepolia testnet rpc url.
-
-3. Change your default network to Sepolia testnet.
-
-Find the `packages/nextjs/scaffold.config.ts` file and change the `targetNetworks` to `[chains.sepolia]`.
-
-![chall-0-scaffold-config](./packages/nextjs/public/scaffold-config.png)
-
-4. Get some testnet tokens.
-
-You will need to get some `STRK` Sepolia tokens to deploy your contract to Sepolia testnet.
-
-> Some popular faucets are [Starknet Faucet](https://starknet-faucet.vercel.app/) and [Blastapi Starknet Sepolia STRK](https://blastapi.io/faucets/starknet-sepolia-strk)
-
-4. Open a terminal, deploy the sample contract to Sepolia testnet:
-
+#### Deploy Mock WBTC (for testing)
 ```bash
-yarn deploy --network sepolia
+starkli declare target/dev/bityield_MockWBTC.contract_class.json --network sepolia
+
+starkli deploy \
+  <MOCK_WBTC_CLASS_HASH> \
+  <YOUR_ADDRESS> \
+  --network sepolia
 ```
 
-5. On a second terminal, start your NextJS app:
-
+#### Deploy VesuAdapter
 ```bash
-yarn start
+starkli declare target/dev/bityield_VesuAdapter.contract_class.json --network sepolia
+
+starkli deploy \
+  <VESU_ADAPTER_CLASS_HASH> \
+  <OWNER_ADDRESS> \
+  <VAULT_ADDRESS> \
+  <WBTC_ADDRESS> \
+  --network sepolia
 ```
 
-Visit your app on: `http://localhost:3000`. You can interact with your smart contract using the `Debug Contracts` page.
+#### Deploy BitYieldVault
+```bash
+starkli declare target/dev/bityield_BitYieldVault.contract_class.json --network sepolia
 
-</details>
+starkli deploy \
+  <VAULT_CLASS_HASH> \
+  <OWNER_ADDRESS> \
+  <WBTC_ADDRESS> \
+  <STRATEGY_MANAGER_ADDRESS> \
+  <VESU_ADAPTER_ADDRESS> \
+  <TROVES_ADAPTER_ADDRESS> \
+  <FEE_RECIPIENT_ADDRESS> \
+  --network sepolia
+```
 
-## Setup RPC specific version
+### 2. Configure Adapters
 
-<details>
+#### Add Vesu Pools
+```bash
+starkli invoke \
+  <VESU_ADAPTER_ADDRESS> \
+  add_pool \
+  <POOL_ID> \
+  <V_TOKEN_ADDRESS> \
+  --network sepolia
+```
 
-To ensure the proper functioning of the scaffold-stark with Testnet or Mainnet, your RPC version must be `0.9.0`. This repository contains `.env.example` files, where we provided the default RPC URL for the Starknet Testnet: `RPC_URL_SEPOLIA=https://starknet-sepolia.public.blastapi.io/rpc/v0_9`. Let's verify this RPC version is `0.9.x` by calling a `POST` request in an API platform like `Postman` or `Insommia` . Your API endpoint should be `https://starknet-sepolia.public.blastapi.io/rpc/v0_9` and the body should be:
+### 3. Mainnet Deployment
+Replace `--network sepolia` with `--network mainnet` and use production addresses.
 
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "starknet_specVersion",
-  "id": 1
+---
+
+## 🔗 Frontend Integration Guide
+
+### Install Dependencies
+```bash
+npm install starknet @starknet-react/core get-starknet-core
+```
+
+### Connect to Starknet
+```typescript
+import { connect, disconnect } from 'get-starknet-core';
+import { Contract, Provider } from 'starknet';
+
+// Connect wallet
+const connectWallet = async () => {
+  const starknet = await connect();
+  if (!starknet) throw new Error('Wallet not found');
+  await starknet.enable();
+  return starknet;
+};
+```
+
+### Deposit WBTC
+```typescript
+import BitYieldVaultABI from './abis/BitYieldVault.json';
+import ERC20ABI from './abis/ERC20.json';
+
+const depositWBTC = async (
+  vaultAddress: string,
+  wbtcAddress: string,
+  amount: string,
+  account: any
+) => {
+  // 1. Approve WBTC
+  const wbtcContract = new Contract(ERC20ABI, wbtcAddress, account);
+  const approveTx = await wbtcContract.approve(vaultAddress, amount);
+  await account.waitForTransaction(approveTx.transaction_hash);
+
+  // 2. Deposit to vault
+  const vaultContract = new Contract(BitYieldVaultABI, vaultAddress, account);
+  const depositTx = await vaultContract.deposit(amount);
+  await account.waitForTransaction(depositTx.transaction_hash);
+  
+  console.log('Deposit successful!', depositTx.transaction_hash);
+};
+```
+
+### Withdraw WBTC
+```typescript
+const withdrawWBTC = async (
+  vaultAddress: string,
+  shares: string,
+  account: any
+) => {
+  const vaultContract = new Contract(BitYieldVaultABI, vaultAddress, account);
+  const withdrawTx = await vaultContract.withdraw(shares);
+  await account.waitForTransaction(withdrawTx.transaction_hash);
+  
+  console.log('Withdrawal successful!', withdrawTx.transaction_hash);
+};
+```
+
+### Get User Balance
+```typescript
+const getUserBalance = async (
+  vaultAddress: string,
+  userAddress: string,
+  provider: Provider
+) => {
+  const vaultContract = new Contract(
+    BitYieldVaultABI,
+    vaultAddress,
+    provider
+  );
+  
+  const shares = await vaultContract.balanceOf(userAddress);
+  const assets = await vaultContract.convertToAssets(shares);
+  
+  return {
+    shares: shares.toString(),
+    assets: assets.toString(),
+  };
+};
+```
+
+### Get Vault TVL
+```typescript
+const getVaultTVL = async (
+  vaultAddress: string,
+  provider: Provider
+) => {
+  const vaultContract = new Contract(
+    BitYieldVaultABI,
+    vaultAddress,
+    provider
+  );
+  
+  const totalAssets = await vaultContract.total_assets();
+  return totalAssets.toString();
+};
+```
+
+### Example React Component
+```typescript
+import { useAccount, useContract } from '@starknet-react/core';
+import { useState, useEffect } from 'react';
+
+function BitYieldDashboard() {
+  const { account, address } = useAccount();
+  const [tvl, setTvl] = useState('0');
+  const [userShares, setUserShares] = useState('0');
+
+  const { contract: vaultContract } = useContract({
+    abi: BitYieldVaultABI,
+    address: VAULT_ADDRESS,
+  });
+
+  useEffect(() => {
+    if (vaultContract) {
+      loadData();
+    }
+  }, [vaultContract, address]);
+
+  const loadData = async () => {
+    const totalAssets = await vaultContract.total_assets();
+    setTvl(totalAssets.toString());
+
+    if (address) {
+      const balance = await vaultContract.balanceOf(address);
+      setUserShares(balance.toString());
+    }
+  };
+
+  const handleDeposit = async (amount: string) => {
+    if (!account) return;
+    await depositWBTC(VAULT_ADDRESS, WBTC_ADDRESS, amount, account);
+    await loadData();
+  };
+
+  return (
+    <div>
+      <h2>BitYield Protocol</h2>
+      <p>Total Value Locked: {tvl} WBTC</p>
+      <p>Your Shares: {userShares} byWBTC</p>
+      <button onClick={() => handleDeposit('1000000')}>
+        Deposit 0.01 WBTC
+      </button>
+    </div>
+  );
 }
 ```
 
-You have to paste the endpoint and body in the API platform and click on the `Send` button. If the response is `0.9.x`, then you are good to go. Otherwise, you have to get the correct RPC URL endpoint.
+---
 
-![rpc-version](./packages/nextjs/public/rpc-version.png)
+## 🔐 Security Considerations
 
-</details>
+### Implemented
+- ✅ **Reentrancy Guards**: Prevent reentrancy attacks
+- ✅ **Pausable**: Emergency stop mechanism
+- ✅ **Ownable**: Access control for admin functions
+- ✅ **Input Validation**: Zero amount checks, address validation
+- ✅ **Safe Math**: Cairo 2.0 overflow protection
 
-## Network Configuration Centralization
+### Recommended Audits
+- [ ] Smart contract audit by reputable firm
+- [ ] Economic model review
+- [ ] Integration testing with live protocols
 
-<details>
+---
 
-By default, majority of the Network settings are centralized in `scaffold.config.ts`, the exception being the RPC urls which are configured from your environment variables. In the absence of the proper settings, the framework will choose a random provider for you.
-In the env file also, the lines configuring the networks (devnet, sepolia or mainnet) need to be uncommented, depending on what
-network you want activated for you.
+## 📊 Key Metrics & Monitoring
 
-**How to Change Networks:**
+### On-Chain Metrics
+- **TVL (Total Value Locked)**: `vault.total_assets()`
+- **User Deposits**: `vault.balanceOf(user)`
+- **Fee Collection**: Monitor `FeeCollected` events
+- **Rebalancing Events**: Track `Rebalance` events
 
-- Update the `targetNetworks` array in `scaffold.config.ts` (first network is the primary target)
+### Performance Metrics
+- **APY (Annual Percentage Yield)**: Calculate from yield deltas
+- **Sharpe Ratio**: Risk-adjusted returns
+- **Allocation Breakdown**: % in Vesu vs Troves
 
-### Required Environment Variables
+---
 
-Set these in your `.env` file:
+## 🤝 Contributing
 
-- `NEXT_PUBLIC_DEVNET_PROVIDER_URL`
-- `NEXT_PUBLIC_SEPOLIA_PROVIDER_URL`
-- `NEXT_PUBLIC_MAINNET_PROVIDER_URL`
+Contributions are welcome! Please follow these steps:
 
-Configuration uses these variables with fallbacks:
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
 
-```typescript
-"devnet": process.env.NEXT_PUBLIC_DEVNET_PROVIDER_URL || "defaultRpcValue",
-"sepolia": process.env.NEXT_PUBLIC_SEPOLIA_PROVIDER_URL || "defaultRpcValue",
-"mainnet": process.env.NEXT_PUBLIC_MAINNET_PROVIDER_URL || "defaultRpcValue"
-```
+---
 
-</details>
+## 📝 License
 
-## CLI Usage
+MIT License - see [LICENSE](LICENSE) file for details
 
-<details>
-Depending on your package manager, substitute the word `COMMAND` with the appropiate one from the list.
+---
 
-```bash
-yarn COMMAND
-npm run COMMAND
-```
+## 🔗 Links
 
-This repo prefer yarn as package manager.
+- **Starknet**: [starknet.io](https://starknet.io)
+- **Vesu Protocol**: [vesu.xyz](https://vesu.xyz)
+- **Atomiq**: [atomiq.io](https://atomiq.io)
+- **Xverse Wallet**: [xverse.app](https://xverse.app)
+- **Cairo Docs**: [cairo-book.github.io](https://cairo-book.github.io)
 
-Commands:
+---
 
-| Command          | Description                                                                               |
-| ---------------- | ----------------------------------------------------------------------------------------- |
-| format:check     | (Read only) Batch checks for format inconsistencies for the nextjs and snfoundry codebase |
-| next:check-types | Compile typscript project                                                                 |
-| next:lint        | Runs next lint                                                                            |
-| prepare          | Install husky's git hooks                                                                 |
-| usage            | Show this text                                                                            |
+## 🏆 Hackathon Submission
 
-### CLI Smart Contracts
+**Starknet Res{solve} Hackathon**
 
-| Command         | Description                                                                         |
-| --------------- | ----------------------------------------------------------------------------------- |
-| compile         | Compiles contracts.                                                                 |
-| test            | Runs snfoundry tests                                                                |
-| chain           | Starts the local blockchain network.                                                |
-| deploy          | Deploys contract to the configured network discarding previous deployments.         |
-| deploy:no-reset | Deploys contract to the configured network without discarding previous deployments. |
-| verify          | Verify Smart Contracts with Walnut                                                  |
+### Innovation Highlights
+1. **First Bitcoin-native yield aggregator** on Starknet
+2. **Seamless UX** - No manual bridging/wrapping for users
+3. **Automated optimization** via Cairo smart contracts
+4. **Multi-protocol integration** (Vesu, Troves, Atomiq)
+5. **ERC4626 compliance** for composability
 
-### CLI Frontend
+### Future Roadmap
+- [ ] Integrate Troves/Endurfi strategies
+- [ ] Add more Vesu pools
+- [ ] Implement auto-compounding
+- [ ] Advanced rebalancing algorithms (APY optimization)
+- [ ] Governance token for protocol decisions
+- [ ] Cross-chain yield opportunities
 
-| Command     | Description                                  |
-| ----------- | -------------------------------------------- |
-| start       | Starts the frontend server                   |
-| test:nextjs | Runs the nextjs tests                        |
-| vercel      | Deploys app to vercel                        |
-| vercel:yolo | Force deploy app to vercel (ignoring errors) |
+---
 
-## **What's next**
-
-- Edit your smart contract `your_contract.cairo` in `packages/snfoundry/contracts/src`
-- Edit your frontend homepage at `packages/nextjs/app/page.tsx`. For guidance on [routing](https://nextjs.org/docs/app/building-your-application/routing/defining-routes) and configuring [pages/layouts](https://nextjs.org/docs/app/building-your-application/routing/pages-and-layouts) checkout the Next.js documentation.
-- Edit your deployment scripts in `packages/snfoundry/script-ts/deploy.ts`
-- Edit your smart contract tests in `packages/snfoundry/contracts/src/test`. To run tests use `yarn test`
-- You can write unit tests for your Next.js app! Run them with one the following scripts below.
-  - `yarn test:nextjs` to run regular tests with watch mode
-  - `yarn test:nextjs run` to run regular tests without watch mode
-  - `yarn test:nextjs run --coverage` to run regular tests without watch mode with coverage
-
-</details>
-
-## Documentation
-
-Visit our [docs](https://docs.scaffoldstark.com/) to learn how to start building with Scaffold-Stark.
-
-To know more about its features, check out our [website](https://scaffoldstark.com)
-
-## Contributing to Scaffold-Stark
-
-We welcome contributions to Scaffold-Stark!
-
-Please see [CONTRIBUTING.MD](https://github.com/Scaffold-Stark/scaffold-stark-2/blob/main/CONTRIBUTING.md) for more information and guidelines for contributing to Scaffold-Stark.
+**Built with ❤️ for the Starknet ecosystem**
