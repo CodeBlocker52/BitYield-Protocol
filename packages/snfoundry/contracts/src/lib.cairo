@@ -1,10 +1,13 @@
-// BitYield Protocol - Main Library
-// Entry point for all contracts and interfaces
+
 
 // ===== INTERFACES =====
 pub mod interfaces {
+    pub mod IERC20;
+    pub mod IERC4626;
     pub mod IBitYieldVault;
     pub mod IVesuAdapter;
+    pub mod ITrovesAdapter;
+    pub mod IStrategyManager;
     pub mod IAtomiqBridge;
 }
 
@@ -12,7 +15,9 @@ pub mod interfaces {
 
     pub mod BitYieldVault;
     pub mod VesuAdapter;
+    pub mod TrovesAdapter;
     pub mod AtomiqBridge;
+    pub mod StrategyManager;
 
 
 // ===== MOCKS (Testing Only) =====
@@ -28,6 +33,8 @@ pub mod mocks {
 pub mod tests {
     pub mod test_vault;
     pub mod test_vesu_adapter;
+    pub mod test_troves_adapter;
+    pub mod test_strategy_manager;
     pub mod test_atomiq_bridge;
-  
+    pub mod test_integration;
 }
