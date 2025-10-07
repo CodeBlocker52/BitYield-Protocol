@@ -38,6 +38,7 @@ pub trait IAtomiqBridge<TContractState> {
     fn get_pending_deposit(self: @TContractState, user: ContractAddress) -> u256;
     fn is_auto_deposit_enabled(self: @TContractState, user: ContractAddress) -> bool;
     fn get_bridge_config(self: @TContractState) -> (u256, u256, u32);
+    fn get_relayer(self: @TContractState) -> ContractAddress;
     
     // Configuration (owner only)
     fn update_atomiq_addresses(
@@ -51,4 +52,5 @@ pub trait IAtomiqBridge<TContractState> {
         max_amount: u256,
         fee_bps: u32
     );
+    fn set_relayer(ref self: TContractState, relayer: ContractAddress);
 }

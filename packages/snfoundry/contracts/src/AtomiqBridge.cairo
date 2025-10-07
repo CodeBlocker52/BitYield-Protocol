@@ -7,6 +7,8 @@ mod AtomiqBridge {
     use starknet::{ContractAddress, get_contract_address, get_caller_address};
     use openzeppelin::access::ownable::{OwnableComponent};
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use bityield_protocol::mocks::MockAtomiqGateway::{IMockAtomiqGatewayDispatcher, IMockAtomiqGatewayDispatcherTrait};
+    use bityield_protocol::interfaces::IBitYieldVault::{IBitYieldVaultDispatcher, IBitYieldVaultDispatcherTrait};
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
 
@@ -22,6 +24,7 @@ mod AtomiqBridge {
         // Atomiq protocol contract addresses
         atomiq_gateway: ContractAddress,
         atomiq_router: ContractAddress,
+        atomiq_relayer: ContractAddress,  // Authorized relayer address
         
         // WBTC token on Starknet
         wbtc_token: ContractAddress,
@@ -125,12 +128,14 @@ mod AtomiqBridge {
         owner: ContractAddress,
         atomiq_gateway: ContractAddress,
         atomiq_router: ContractAddress,
+        atomiq_relayer: ContractAddress,
         wbtc_token: ContractAddress,
         bityield_vault: ContractAddress,
     ) {
         self.ownable.initializer(owner);
         self.atomiq_gateway.write(atomiq_gateway);
         self.atomiq_router.write(atomiq_router);
+        self.atomiq_relayer.write(atomiq_relayer);
         self.wbtc_token.write(wbtc_token);
         self.bityield_vault.write(bityield_vault);
         
@@ -197,11 +202,27 @@ mod AtomiqBridge {
             btc_tx_hash: felt252,
             wbtc_amount: u256,
         ) {
-            // TODO: Add access control - only Atomiq relayer should call this
+            // Verify caller is authorized Atomiq relayer
+            let caller = get_caller_address();
+            assert(caller == self.atomiq_relayer.read(), Errors::UNAUTHORIZED);
             
             let mut request = self.bridge_requests.read(btc_tx_hash);
             assert(request.status == BridgeStatus::Pending, Errors::INVALID_STATUS);
             
+            // Call Atomiq gateway to complete bridge and receive WBTC
+            let gateway = IMockAtomiqGatewayDispatcher {
+                contract_address: self.atomiq_gateway.read()
+            };
+            
+            let this = get_contract_address();
+            let success = gateway.complete_btc_bridge(
+                btc_tx_hash,
+                this,  // WBTC sent to this contract
+                wbtc_amount
+            );
+            assert(success, 'Gateway bridge failed');
+            
+            // Update request status
             request.status = BridgeStatus::Completed;
             request.wbtc_amount = wbtc_amount;
             self.bridge_requests.write(btc_tx_hash, request);
@@ -312,6 +333,17 @@ mod AtomiqBridge {
                 self.bridge_fee_bps.read(),
             )
         }
+
+        /// Set authorized relayer (owner only)
+        fn set_relayer(ref self: ContractState, relayer: ContractAddress) {
+            self.ownable.assert_only_owner();
+            self.atomiq_relayer.write(relayer);
+        }
+
+        /// Get authorized relayer address
+        fn get_relayer(self: @ContractState) -> ContractAddress {
+            self.atomiq_relayer.read()
+        }
     }
 
     #[generate_trait]
@@ -324,25 +356,24 @@ mod AtomiqBridge {
 
         fn _auto_deposit_to_vault(ref self: ContractState, user: ContractAddress, wbtc_amount: u256) {
             let vault_address = self.bityield_vault.read();
-            let this = get_contract_address();
             
             // Approve vault to spend WBTC
             let wbtc = IERC20Dispatcher { contract_address: self.wbtc_token.read() };
             wbtc.approve(vault_address, wbtc_amount);
             
-            // TODO: Call vault deposit function
-            // let vault = IBitYieldVaultDispatcher { contract_address: vault_address };
-            // let shares = vault.deposit(wbtc_amount);
+            // Call vault deposit function
+            let vault = IBitYieldVaultDispatcher { contract_address: vault_address };
+            let shares = vault.deposit(wbtc_amount);
             
-            // For now, just transfer to user
-            // In production, this would deposit to vault on behalf of user
-            let success = wbtc.transfer(user, wbtc_amount);
+            // Transfer vault shares to user
+            let vault_token = IERC20Dispatcher { contract_address: vault_address };
+            let success = vault_token.transfer(user, shares);
             assert(success, Errors::TRANSFER_FAILED);
             
             self.emit(AutoDepositExecuted {
                 user,
                 wbtc_amount,
-                vault_shares: wbtc_amount,  // Placeholder
+                vault_shares: shares,
             });
         }
     }
@@ -360,6 +391,8 @@ trait IAtomiqBridge<TContractState> {
     fn update_atomiq_addresses(ref self: TContractState, gateway: ContractAddress, router: ContractAddress);
     fn update_bridge_config(ref self: TContractState, min_amount: u256, max_amount: u256, fee_bps: u32);
     fn get_bridge_config(self: @TContractState) -> (u256, u256, u32);
+    fn set_relayer(ref self: TContractState, relayer: ContractAddress);
+    fn get_relayer(self: @TContractState) -> ContractAddress;
 }
 
 /// Integration Notes:
