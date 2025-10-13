@@ -1,14 +1,51 @@
-/// AtomiqBridge - Integration with Atomiq Protocol for BTC <-> WBTC bridging
-/// This contract facilitates seamless Bitcoin L1 to WBTC conversion on Starknet
-/// Reference: https://github.com/atomiqlabs/atomiq-contracts-starknet
+use starknet::ContractAddress;
+
+// Import from the interfaces module
+use bityield_contracts::interfaces::IAtomiqBridge::{BridgeRequest, BridgeStatus};
+
+#[starknet::interface]
+pub trait IAtomiqBridge<TContractState> {
+    fn initiate_bridge(ref self: TContractState, btc_tx_hash: felt252, btc_amount: u256, auto_deposit: bool);
+    fn complete_bridge(ref self: TContractState, btc_tx_hash: felt252, wbtc_amount: u256);
+    fn initiate_withdrawal(ref self: TContractState, wbtc_amount: u256, btc_address: ByteArray);
+    fn set_auto_deposit(ref self: TContractState, enabled: bool);
+    fn get_bridge_request(self: @TContractState, tx_hash: felt252) -> BridgeRequest;
+    fn get_pending_deposit(self: @TContractState, user: ContractAddress) -> u256;
+    fn is_auto_deposit_enabled(self: @TContractState, user: ContractAddress) -> bool;
+    fn update_atomiq_addresses(ref self: TContractState, gateway: ContractAddress, router: ContractAddress);
+    fn update_bridge_config(ref self: TContractState, min_amount: u256, max_amount: u256, fee_bps: u32);
+    fn get_bridge_config(self: @TContractState) -> (u256, u256, u32);
+    fn set_relayer(ref self: TContractState, relayer: ContractAddress);
+    fn get_relayer(self: @TContractState) -> ContractAddress;
+}
 
 #[starknet::contract]
 mod AtomiqBridge {
+    use super::{BridgeRequest, BridgeStatus};
     use starknet::{ContractAddress, get_contract_address, get_caller_address};
-    use openzeppelin::access::ownable::{OwnableComponent};
-    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
-    use bityield_protocol::mocks::MockAtomiqGateway::{IMockAtomiqGatewayDispatcher, IMockAtomiqGatewayDispatcherTrait};
-    use bityield_protocol::interfaces::IBitYieldVault::{IBitYieldVaultDispatcher, IBitYieldVaultDispatcherTrait};
+     use core::num::traits::Zero;
+    use openzeppelin_access::ownable::OwnableComponent;
+    use openzeppelin_token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use starknet::storage::{
+        StoragePointerReadAccess, StoragePointerWriteAccess, Map, StoragePathEntry
+    };
+
+    // Define Atomiq Gateway interface locally to avoid import issues
+    #[starknet::interface]
+    trait IAtomiqGateway<TContractState> {
+        fn complete_btc_bridge(
+            ref self: TContractState,
+            btc_tx_hash: felt252,
+            recipient: ContractAddress,
+            amount: u256,
+        ) -> bool;
+    }
+
+    // Define BitYield Vault interface locally
+    #[starknet::interface]
+    trait IVault<TContractState> {
+        fn deposit(ref self: TContractState, assets: u256) -> u256;
+    }
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
 
@@ -20,55 +57,24 @@ mod AtomiqBridge {
     struct Storage {
         #[substorage(v0)]
         ownable: OwnableComponent::Storage,
-        
-        // Atomiq protocol contract addresses
         atomiq_gateway: ContractAddress,
         atomiq_router: ContractAddress,
-        atomiq_relayer: ContractAddress,  // Authorized relayer address
-        
-        // WBTC token on Starknet
+        atomiq_relayer: ContractAddress,
         wbtc_token: ContractAddress,
-        
-        // BitYield vault for auto-deposit
         bityield_vault: ContractAddress,
-        
-        // Bridge transaction tracking
-        bridge_requests: LegacyMap<felt252, BridgeRequest>,  // tx_hash -> request
-        pending_deposits: LegacyMap<ContractAddress, u256>,  // user -> pending amount
-        
-        // Fee configuration
-        bridge_fee_bps: u32,  // basis points
+        bridge_requests: Map<felt252, BridgeRequest>,
+        pending_deposits: Map<ContractAddress, u256>,
+        bridge_fee_bps: u32,
         min_bridge_amount: u256,
         max_bridge_amount: u256,
-        
-        // Auto-deposit configuration
-        auto_deposit_enabled: LegacyMap<ContractAddress, bool>,
-    }
-
-    #[derive(Drop, Copy, Serde, starknet::Store)]
-    struct BridgeRequest {
-        user: ContractAddress,
-        btc_amount: u256,
-        wbtc_amount: u256,
-        status: BridgeStatus,
-        timestamp: u64,
-        auto_deposit: bool,
-    }
-
-    #[derive(Drop, Copy, Serde, starknet::Store, PartialEq)]
-    enum BridgeStatus {
-        Pending,
-        Confirmed,
-        Completed,
-        Failed,
+        auto_deposit_enabled: Map<ContractAddress, bool>,
     }
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub enum Event {
         #[flat]
         OwnableEvent: OwnableComponent::Event,
-        
         BridgeInitiated: BridgeInitiated,
         BridgeCompleted: BridgeCompleted,
         AutoDepositExecuted: AutoDepositExecuted,
@@ -76,51 +82,50 @@ mod AtomiqBridge {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct BridgeInitiated {
+    pub struct BridgeInitiated {
         #[key]
-        user: ContractAddress,
+        pub user: ContractAddress,
         #[key]
-        tx_hash: felt252,
-        btc_amount: u256,
-        expected_wbtc: u256,
-        auto_deposit: bool,
+        pub tx_hash: felt252,
+        pub btc_amount: u256,
+        pub expected_wbtc: u256,
+        pub auto_deposit: bool,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct BridgeCompleted {
+    pub struct BridgeCompleted {
         #[key]
-        user: ContractAddress,
+        pub user: ContractAddress,
         #[key]
-        tx_hash: felt252,
-        wbtc_received: u256,
+        pub tx_hash: felt252,
+        pub wbtc_received: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct AutoDepositExecuted {
+    pub struct AutoDepositExecuted {
         #[key]
-        user: ContractAddress,
-        wbtc_amount: u256,
-        vault_shares: u256,
+        pub user: ContractAddress,
+        pub wbtc_amount: u256,
+        pub vault_shares: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct WithdrawalInitiated {
+    pub struct WithdrawalInitiated {
         #[key]
-        user: ContractAddress,
-        wbtc_amount: u256,
-        btc_address: ByteArray,
+        pub user: ContractAddress,
+        pub wbtc_amount: u256,
+        pub btc_address: ByteArray,
     }
 
-    mod Errors {
-        const ZERO_ADDRESS: felt252 = 'Zero address not allowed';
-        const ZERO_AMOUNT: felt252 = 'Amount must be greater than 0';
-        const BELOW_MINIMUM: felt252 = 'Below minimum bridge amount';
-        const ABOVE_MAXIMUM: felt252 = 'Above maximum bridge amount';
-        const REQUEST_NOT_FOUND: felt252 = 'Bridge request not found';
-        const INVALID_STATUS: felt252 = 'Invalid request status';
-        const UNAUTHORIZED: felt252 = 'Unauthorized caller';
-        const TRANSFER_FAILED: felt252 = 'Token transfer failed';
-    }
+    // Error constants
+    pub const ZERO_ADDRESS: felt252 = 'Zero address not allowed';
+    pub const ZERO_AMOUNT: felt252 = 'Amount must be greater than 0';
+    pub const BELOW_MINIMUM: felt252 = 'Below minimum bridge amount';
+    pub const ABOVE_MAXIMUM: felt252 = 'Above maximum bridge amount';
+    pub const REQUEST_NOT_FOUND: felt252 = 'Bridge request not found';
+    pub const INVALID_STATUS: felt252 = 'Invalid request status';
+    pub const UNAUTHORIZED: felt252 = 'Unauthorized caller';
+    pub const TRANSFER_FAILED: felt252 = 'Token transfer failed';
 
     #[constructor]
     fn constructor(
@@ -149,10 +154,6 @@ mod AtomiqBridge {
 
     #[abi(embed_v0)]
     impl AtomiqBridgeImpl of super::IAtomiqBridge<ContractState> {
-        /// Initiate BTC to WBTC bridge transaction
-        /// @param btc_tx_hash: Bitcoin transaction hash
-        /// @param btc_amount: Amount of BTC to bridge (in satoshis)
-        /// @param auto_deposit: Whether to auto-deposit WBTC into BitYield vault
         fn initiate_bridge(
             ref self: ContractState,
             btc_tx_hash: felt252,
@@ -176,14 +177,12 @@ mod AtomiqBridge {
                 auto_deposit,
             };
             
-            self.bridge_requests.write(btc_tx_hash, request);
-            self.pending_deposits.write(caller, self.pending_deposits.read(caller) + expected_wbtc);
+            self.bridge_requests.entry(btc_tx_hash).write(request);
+            
+            let current_pending = self.pending_deposits.entry(caller).read();
+            self.pending_deposits.entry(caller).write(current_pending + expected_wbtc);
             
             // TODO: Call Atomiq gateway to initiate bridge
-            // This would involve:
-            // 1. Verifying Bitcoin transaction on L1
-            // 2. Locking BTC in Atomiq bridge
-            // 3. Minting WBTC on Starknet
             
             self.emit(BridgeInitiated {
                 user: caller,
@@ -194,9 +193,6 @@ mod AtomiqBridge {
             });
         }
 
-        /// Complete bridge transaction (called by Atomiq relayer)
-        /// @param btc_tx_hash: Bitcoin transaction hash
-        /// @param wbtc_amount: Actual WBTC amount received
         fn complete_bridge(
             ref self: ContractState,
             btc_tx_hash: felt252,
@@ -204,31 +200,32 @@ mod AtomiqBridge {
         ) {
             // Verify caller is authorized Atomiq relayer
             let caller = get_caller_address();
-            assert(caller == self.atomiq_relayer.read(), Errors::UNAUTHORIZED);
+            assert!(caller == self.atomiq_relayer.read(), "{}", UNAUTHORIZED);
             
-            let mut request = self.bridge_requests.read(btc_tx_hash);
-            assert(request.status == BridgeStatus::Pending, Errors::INVALID_STATUS);
+            let mut request = self.bridge_requests.entry(btc_tx_hash).read();
+            assert!(request.status == BridgeStatus::Pending, "{}", INVALID_STATUS);
             
             // Call Atomiq gateway to complete bridge and receive WBTC
-            let gateway = IMockAtomiqGatewayDispatcher {
+            let gateway = IAtomiqGatewayDispatcher {
                 contract_address: self.atomiq_gateway.read()
             };
             
-            let this = get_contract_address();
+            let _this = get_contract_address();
             let success = gateway.complete_btc_bridge(
                 btc_tx_hash,
-                this,  // WBTC sent to this contract
+                _this,
                 wbtc_amount
             );
-            assert(success, 'Gateway bridge failed');
+            assert!(success, "Gateway bridge failed");
             
             // Update request status
             request.status = BridgeStatus::Completed;
             request.wbtc_amount = wbtc_amount;
-            self.bridge_requests.write(btc_tx_hash, request);
+            self.bridge_requests.entry(btc_tx_hash).write(request);
             
             let user = request.user;
-            self.pending_deposits.write(user, self.pending_deposits.read(user) - wbtc_amount);
+            let current_pending = self.pending_deposits.entry(user).read();
+            self.pending_deposits.entry(user).write(current_pending - wbtc_amount);
             
             // If auto-deposit enabled, deposit WBTC into BitYield vault
             if request.auto_deposit {
@@ -237,7 +234,7 @@ mod AtomiqBridge {
                 // Transfer WBTC to user
                 let wbtc = IERC20Dispatcher { contract_address: self.wbtc_token.read() };
                 let success = wbtc.transfer(user, wbtc_amount);
-                assert(success, Errors::TRANSFER_FAILED);
+                assert!(success, "{}", TRANSFER_FAILED);
             }
             
             self.emit(BridgeCompleted {
@@ -247,9 +244,6 @@ mod AtomiqBridge {
             });
         }
 
-        /// Initiate WBTC to BTC withdrawal
-        /// @param wbtc_amount: Amount of WBTC to bridge back to Bitcoin
-        /// @param btc_address: Bitcoin address to receive funds
         fn initiate_withdrawal(
             ref self: ContractState,
             wbtc_amount: u256,
@@ -263,13 +257,9 @@ mod AtomiqBridge {
             // Transfer WBTC from user to bridge
             let wbtc = IERC20Dispatcher { contract_address: self.wbtc_token.read() };
             let success = wbtc.transfer_from(caller, this, wbtc_amount);
-            assert(success, Errors::TRANSFER_FAILED);
+            assert!(success, "{}", TRANSFER_FAILED);
             
             // TODO: Call Atomiq gateway to initiate withdrawal
-            // This would involve:
-            // 1. Burning WBTC on Starknet
-            // 2. Unlocking BTC on L1
-            // 3. Sending BTC to provided address
             
             self.emit(WithdrawalInitiated {
                 user: caller,
@@ -278,28 +268,23 @@ mod AtomiqBridge {
             });
         }
 
-        /// Enable/disable auto-deposit for user
         fn set_auto_deposit(ref self: ContractState, enabled: bool) {
             let caller = get_caller_address();
-            self.auto_deposit_enabled.write(caller, enabled);
+            self.auto_deposit_enabled.entry(caller).write(enabled);
         }
 
-        /// Get bridge request details
         fn get_bridge_request(self: @ContractState, tx_hash: felt252) -> BridgeRequest {
-            self.bridge_requests.read(tx_hash)
+            self.bridge_requests.entry(tx_hash).read()
         }
 
-        /// Get pending deposit amount for user
         fn get_pending_deposit(self: @ContractState, user: ContractAddress) -> u256 {
-            self.pending_deposits.read(user)
+            self.pending_deposits.entry(user).read()
         }
 
-        /// Check if auto-deposit is enabled for user
         fn is_auto_deposit_enabled(self: @ContractState, user: ContractAddress) -> bool {
-            self.auto_deposit_enabled.read(user)
+            self.auto_deposit_enabled.entry(user).read()
         }
 
-        /// Update Atomiq protocol addresses
         fn update_atomiq_addresses(
             ref self: ContractState,
             gateway: ContractAddress,
@@ -310,7 +295,6 @@ mod AtomiqBridge {
             self.atomiq_router.write(router);
         }
 
-        /// Update bridge configuration
         fn update_bridge_config(
             ref self: ContractState,
             min_amount: u256,
@@ -318,14 +302,13 @@ mod AtomiqBridge {
             fee_bps: u32,
         ) {
             self.ownable.assert_only_owner();
-            assert(fee_bps <= 1000, Errors::ABOVE_MAXIMUM);  // Max 10% fee
+            assert!(fee_bps <= 1000, "{}", ABOVE_MAXIMUM);  // Max 10% fee
             
             self.min_bridge_amount.write(min_amount);
             self.max_bridge_amount.write(max_amount);
             self.bridge_fee_bps.write(fee_bps);
         }
 
-        /// Get bridge configuration
         fn get_bridge_config(self: @ContractState) -> (u256, u256, u32) {
             (
                 self.min_bridge_amount.read(),
@@ -334,13 +317,11 @@ mod AtomiqBridge {
             )
         }
 
-        /// Set authorized relayer (owner only)
         fn set_relayer(ref self: ContractState, relayer: ContractAddress) {
             self.ownable.assert_only_owner();
             self.atomiq_relayer.write(relayer);
         }
 
-        /// Get authorized relayer address
         fn get_relayer(self: @ContractState) -> ContractAddress {
             self.atomiq_relayer.read()
         }
@@ -349,9 +330,9 @@ mod AtomiqBridge {
     #[generate_trait]
     impl InternalImpl of InternalTrait {
         fn _validate_bridge_amount(self: @ContractState, amount: u256) {
-            assert(amount > 0, Errors::ZERO_AMOUNT);
-            assert(amount >= self.min_bridge_amount.read(), Errors::BELOW_MINIMUM);
-            assert(amount <= self.max_bridge_amount.read(), Errors::ABOVE_MAXIMUM);
+            assert!(amount > 0, "{}", ZERO_AMOUNT);
+            assert!(amount >= self.min_bridge_amount.read(), "{}", BELOW_MINIMUM);
+            assert!(amount <= self.max_bridge_amount.read(), "{}", ABOVE_MAXIMUM);
         }
 
         fn _auto_deposit_to_vault(ref self: ContractState, user: ContractAddress, wbtc_amount: u256) {
@@ -362,13 +343,13 @@ mod AtomiqBridge {
             wbtc.approve(vault_address, wbtc_amount);
             
             // Call vault deposit function
-            let vault = IBitYieldVaultDispatcher { contract_address: vault_address };
+            let vault = IVaultDispatcher { contract_address: vault_address };
             let shares = vault.deposit(wbtc_amount);
             
             // Transfer vault shares to user
             let vault_token = IERC20Dispatcher { contract_address: vault_address };
             let success = vault_token.transfer(user, shares);
-            assert(success, Errors::TRANSFER_FAILED);
+            assert!(success, "{}", TRANSFER_FAILED);
             
             self.emit(AutoDepositExecuted {
                 user,
@@ -378,20 +359,3 @@ mod AtomiqBridge {
         }
     }
 }
-
-#[starknet::interface]
-trait IAtomiqBridge<TContractState> {
-    fn initiate_bridge(ref self: TContractState, btc_tx_hash: felt252, btc_amount: u256, auto_deposit: bool);
-    fn complete_bridge(ref self: TContractState, btc_tx_hash: felt252, wbtc_amount: u256);
-    fn initiate_withdrawal(ref self: TContractState, wbtc_amount: u256, btc_address: ByteArray);
-    fn set_auto_deposit(ref self: TContractState, enabled: bool);
-    fn get_bridge_request(self: @TContractState, tx_hash: felt252) -> BridgeRequest;
-    fn get_pending_deposit(self: @TContractState, user: ContractAddress) -> u256;
-    fn is_auto_deposit_enabled(self: @TContractState, user: ContractAddress) -> bool;
-    fn update_atomiq_addresses(ref self: TContractState, gateway: ContractAddress, router: ContractAddress);
-    fn update_bridge_config(ref self: TContractState, min_amount: u256, max_amount: u256, fee_bps: u32);
-    fn get_bridge_config(self: @TContractState) -> (u256, u256, u32);
-    fn set_relayer(ref self: TContractState, relayer: ContractAddress);
-    fn get_relayer(self: @TContractState) -> ContractAddress;
-}
-

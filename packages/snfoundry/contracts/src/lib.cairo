@@ -14,8 +14,8 @@ pub mod interfaces {
 // ===== CONTRACTS =====
 
     pub mod BitYieldVault;
-    pub mod VesuAdapter;
-    pub mod TrovesAdapter;
+    pub mod VesuAdapters;
+    pub mod TrovesAdapters;
     pub mod AtomiqBridge;
     pub mod StrategyManager;
 

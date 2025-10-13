@@ -1,10 +1,46 @@
-/// StrategyManager - Orchestrates yield optimization across multiple protocols
-/// Manages allocation between Vesu lending and Troves staking strategies
+use starknet::ContractAddress;
+
+// Public structs that need to be exported from the interface
+#[derive(Drop, Copy, Serde, starknet::Store)]
+pub struct StrategyPerformance {
+    pub total_deposited: u256,
+    pub total_withdrawn: u256,
+    pub yield_earned: u256,
+    pub last_apy: u32,
+    pub last_update: u64,
+}
+
+#[derive(Drop, Serde)]
+pub struct RebalanceAction {
+    pub from_strategy: felt252,
+    pub to_strategy: felt252,
+    pub amount: u256,
+}
+
+#[starknet::interface]
+pub trait IStrategyManager<TContractState> {
+    fn calculate_optimal_allocation(self: @TContractState, total_assets: u256) -> (u256, u256, u256);
+    fn needs_rebalance(self: @TContractState, total_assets: u256) -> bool;
+    fn rebalance(ref self: TContractState, total_assets: u256) -> Array<RebalanceAction>;
+    fn harvest_yield(ref self: TContractState) -> u256;
+    fn update_targets(ref self: TContractState, vesu_bps: u32, troves_bps: u32, idle_bps: u32);
+    fn set_rebalancer(ref self: TContractState, rebalancer: ContractAddress, authorized: bool);
+    fn get_targets(self: @TContractState) -> (u32, u32, u32);
+    fn get_strategy_performance(self: @TContractState, strategy: felt252) -> StrategyPerformance;
+    fn get_cumulative_yield(self: @TContractState) -> u256;
+    fn calculate_apy(self: @TContractState) -> u32;
+    fn update_rebalance_config(ref self: TContractState, threshold_bps: u32, min_interval: u64);
+}
 
 #[starknet::contract]
 mod StrategyManager {
-    use starknet::{ContractAddress, get_contract_address, get_caller_address, get_block_timestamp};
-    use openzeppelin::access::ownable::{OwnableComponent};
+    use super::{StrategyPerformance, RebalanceAction};
+    use starknet::{ContractAddress,  get_caller_address, get_block_timestamp};
+    use core::num::traits::Zero;
+    use openzeppelin_access::ownable::OwnableComponent;
+    use starknet::storage::{
+        StoragePointerReadAccess, StoragePointerWriteAccess, Map, StoragePathEntry
+    };
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
 
@@ -16,57 +52,28 @@ mod StrategyManager {
     struct Storage {
         #[substorage(v0)]
         ownable: OwnableComponent::Storage,
-        
-        // Connected contracts
         vault: ContractAddress,
         vesu_adapter: ContractAddress,
         troves_adapter: ContractAddress,
-        
-        // Strategy allocation targets (in basis points)
         vesu_target_bps: u32,
         troves_target_bps: u32,
         idle_target_bps: u32,
-        
-        // Rebalancing configuration
-        rebalance_threshold_bps: u32,  // Min deviation to trigger rebalance
-        min_rebalance_interval: u64,    // Minimum time between rebalances
+        rebalance_threshold_bps: u32,
+        min_rebalance_interval: u64,
         last_rebalance_time: u64,
-        
-        // Yield tracking
         last_total_assets: u256,
         last_yield_update: u64,
         cumulative_yield: u256,
-        
-        // Performance tracking per strategy
         vesu_performance: StrategyPerformance,
         troves_performance: StrategyPerformance,
-        
-        // Authorized rebalancers (can be keeper/bot addresses)
-        authorized_rebalancers: LegacyMap<ContractAddress, bool>,
-    }
-
-    #[derive(Drop, Copy, Serde, starknet::Store)]
-    struct StrategyPerformance {
-        total_deposited: u256,
-        total_withdrawn: u256,
-        yield_earned: u256,
-        last_apy: u32,  // in basis points
-        last_update: u64,
-    }
-
-    #[derive(Drop, Serde)]
-    struct RebalanceAction {
-        from_strategy: felt252,  // 'vesu', 'troves', or 'idle'
-        to_strategy: felt252,
-        amount: u256,
+        authorized_rebalancers: Map<ContractAddress, bool>,
     }
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub enum Event {
         #[flat]
         OwnableEvent: OwnableComponent::Event,
-        
         StrategyAllocated: StrategyAllocated,
         RebalanceExecuted: RebalanceExecuted,
         TargetsUpdated: TargetsUpdated,
@@ -75,48 +82,49 @@ mod StrategyManager {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct StrategyAllocated {
-        strategy: felt252,
-        amount: u256,
-        timestamp: u64,
+    pub struct StrategyAllocated {
+        #[key]
+        pub strategy: felt252,
+        pub amount: u256,
+        pub timestamp: u64,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct RebalanceExecuted {
-        vesu_allocation: u256,
-        troves_allocation: u256,
-        idle_amount: u256,
-        timestamp: u64,
+    pub struct RebalanceExecuted {
+        pub vesu_allocation: u256,
+        pub troves_allocation: u256,
+        pub idle_amount: u256,
+        pub timestamp: u64,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct TargetsUpdated {
-        vesu_target_bps: u32,
-        troves_target_bps: u32,
-        idle_target_bps: u32,
+    pub struct TargetsUpdated {
+        pub vesu_target_bps: u32,
+        pub troves_target_bps: u32,
+        pub idle_target_bps: u32,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct YieldHarvested {
-        total_yield: u256,
-        vesu_yield: u256,
-        troves_yield: u256,
-        timestamp: u64,
+    pub struct YieldHarvested {
+        pub total_yield: u256,
+        pub vesu_yield: u256,
+        pub troves_yield: u256,
+        pub timestamp: u64,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct RebalancerAuthorized {
-        rebalancer: ContractAddress,
-        authorized: bool,
+    pub struct RebalancerAuthorized {
+        #[key]
+        pub rebalancer: ContractAddress,
+        pub authorized: bool,
     }
 
-    mod Errors {
-        const UNAUTHORIZED: felt252 = 'Unauthorized caller';
-        const INVALID_ALLOCATION: felt252 = 'Invalid allocation targets';
-        const REBALANCE_TOO_SOON: felt252 = 'Rebalance interval not met';
-        const THRESHOLD_NOT_MET: felt252 = 'Threshold not exceeded';
-        const ZERO_ADDRESS: felt252 = 'Zero address not allowed';
-    }
+    // Error constants
+    pub const UNAUTHORIZED: felt252 = 'Unauthorized caller';
+    pub const INVALID_ALLOCATION: felt252 = 'Invalid allocation targets';
+    pub const REBALANCE_TOO_SOON: felt252 = 'Rebalance interval not met';
+    pub const THRESHOLD_NOT_MET: felt252 = 'Threshold not exceeded';
+    pub const ZERO_ADDRESS: felt252 = 'Zero address not allowed';
 
     #[constructor]
     fn constructor(
@@ -143,11 +151,25 @@ mod StrategyManager {
         self.min_rebalance_interval.write(3600);
         
         self.last_rebalance_time.write(get_block_timestamp());
+        
+        // Initialize performance tracking
+        let empty_performance = StrategyPerformance {
+            total_deposited: 0,
+            total_withdrawn: 0,
+            yield_earned: 0,
+            last_apy: 0,
+            last_update: 0,
+        };
+        self.vesu_performance.write(empty_performance);
+        self.troves_performance.write(empty_performance);
+        
+        self.last_total_assets.write(0);
+        self.last_yield_update.write(get_block_timestamp());
+        self.cumulative_yield.write(0);
     }
 
     #[abi(embed_v0)]
     impl StrategyManagerImpl of super::IStrategyManager<ContractState> {
-        /// Calculate optimal allocation based on current yields
         fn calculate_optimal_allocation(self: @ContractState, total_assets: u256) -> (u256, u256, u256) {
             let vesu_target = (total_assets * self.vesu_target_bps.read().into()) / 10000;
             let troves_target = (total_assets * self.troves_target_bps.read().into()) / 10000;
@@ -156,7 +178,6 @@ mod StrategyManager {
             (vesu_target, troves_target, idle_target)
         }
 
-        /// Check if rebalancing is needed
         fn needs_rebalance(self: @ContractState, total_assets: u256) -> bool {
             // Check time interval
             let current_time = get_block_timestamp();
@@ -166,11 +187,10 @@ mod StrategyManager {
             }
             
             // Check if deviation exceeds threshold
-            let (vesu_target, troves_target, _) = self.calculate_optimal_allocation(total_assets);
+            let (vesu_target, _troves_target, _) = self.calculate_optimal_allocation(total_assets);
             
             // TODO: Get actual allocations from adapters
-            let vesu_actual: u256 = 0;  // Placeholder
-            let troves_actual: u256 = 0;  // Placeholder
+            let vesu_actual: u256 = 0;
             
             let vesu_deviation = if vesu_actual > vesu_target {
                 ((vesu_actual - vesu_target) * 10000) / total_assets
@@ -182,7 +202,6 @@ mod StrategyManager {
             vesu_deviation > threshold
         }
 
-        /// Execute rebalancing strategy
         fn rebalance(ref self: ContractState, total_assets: u256) -> Array<RebalanceAction> {
             self._assert_can_rebalance();
             
@@ -229,17 +248,17 @@ mod StrategyManager {
             actions
         }
 
-        /// Harvest yield from all strategies
         fn harvest_yield(ref self: ContractState) -> u256 {
             self._assert_authorized();
             
             // TODO: Call harvest on adapters
-            let vesu_yield: u256 = 0;  // Placeholder
-            let troves_yield: u256 = 0;  // Placeholder
+            let vesu_yield: u256 = 0;
+            let troves_yield: u256 = 0;
             let total_yield = vesu_yield + troves_yield;
             
             // Update performance tracking
-            self.cumulative_yield.write(self.cumulative_yield.read() + total_yield);
+            let current_cumulative = self.cumulative_yield.read();
+            self.cumulative_yield.write(current_cumulative + total_yield);
             self.last_yield_update.write(get_block_timestamp());
             
             self.emit(YieldHarvested {
@@ -252,7 +271,6 @@ mod StrategyManager {
             total_yield
         }
 
-        /// Update target allocations
         fn update_targets(
             ref self: ContractState,
             vesu_bps: u32,
@@ -260,7 +278,7 @@ mod StrategyManager {
             idle_bps: u32,
         ) {
             self.ownable.assert_only_owner();
-            assert(vesu_bps + troves_bps + idle_bps == 10000, Errors::INVALID_ALLOCATION);
+            assert!(vesu_bps + troves_bps + idle_bps == 10000, "{}", INVALID_ALLOCATION);
             
             self.vesu_target_bps.write(vesu_bps);
             self.troves_target_bps.write(troves_bps);
@@ -273,17 +291,15 @@ mod StrategyManager {
             });
         }
 
-        /// Authorize/deauthorize rebalancer
         fn set_rebalancer(ref self: ContractState, rebalancer: ContractAddress, authorized: bool) {
             self.ownable.assert_only_owner();
-            assert(!rebalancer.is_zero(), Errors::ZERO_ADDRESS);
+            assert!(!rebalancer.is_zero(), "{}", ZERO_ADDRESS);
             
-            self.authorized_rebalancers.write(rebalancer, authorized);
+            self.authorized_rebalancers.entry(rebalancer).write(authorized);
             
             self.emit(RebalancerAuthorized { rebalancer, authorized });
         }
 
-        /// Get current allocation targets
         fn get_targets(self: @ContractState) -> (u32, u32, u32) {
             (
                 self.vesu_target_bps.read(),
@@ -292,7 +308,6 @@ mod StrategyManager {
             )
         }
 
-        /// Get strategy performance
         fn get_strategy_performance(self: @ContractState, strategy: felt252) -> StrategyPerformance {
             if strategy == 'vesu' {
                 self.vesu_performance.read()
@@ -310,15 +325,13 @@ mod StrategyManager {
             }
         }
 
-        /// Get cumulative yield
         fn get_cumulative_yield(self: @ContractState) -> u256 {
             self.cumulative_yield.read()
         }
 
-        /// Calculate current APY
         fn calculate_apy(self: @ContractState) -> u32 {
             let current_assets = self.last_total_assets.read();
-            let previous_assets = current_assets; // Would need historical tracking
+            let previous_assets = current_assets;
             
             if previous_assets == 0 {
                 return 0;
@@ -337,10 +350,9 @@ mod StrategyManager {
             };
             
             let apy = (gain * 10000 * 31536000) / (previous_assets * time_elapsed.into());
-            apy.try_into().unwrap()
+            apy.try_into().unwrap_or(0)
         }
 
-        /// Update rebalance configuration
         fn update_rebalance_config(
             ref self: ContractState,
             threshold_bps: u32,
@@ -357,8 +369,8 @@ mod StrategyManager {
         fn _assert_authorized(self: @ContractState) {
             let caller = get_caller_address();
             let is_owner = caller == self.ownable.owner();
-            let is_authorized = self.authorized_rebalancers.read(caller);
-            assert(is_owner || is_authorized, Errors::UNAUTHORIZED);
+            let is_authorized = self.authorized_rebalancers.entry(caller).read();
+            assert!(is_owner || is_authorized, "{}", UNAUTHORIZED);
         }
 
         fn _assert_can_rebalance(self: @ContractState) {
@@ -366,22 +378,7 @@ mod StrategyManager {
             
             let current_time = get_block_timestamp();
             let time_since_last = current_time - self.last_rebalance_time.read();
-            assert(time_since_last >= self.min_rebalance_interval.read(), Errors::REBALANCE_TOO_SOON);
+            assert!(time_since_last >= self.min_rebalance_interval.read(), "{}", REBALANCE_TOO_SOON);
         }
     }
-}
-
-#[starknet::interface]
-trait IStrategyManager<TContractState> {
-    fn calculate_optimal_allocation(self: @TContractState, total_assets: u256) -> (u256, u256, u256);
-    fn needs_rebalance(self: @TContractState, total_assets: u256) -> bool;
-    fn rebalance(ref self: TContractState, total_assets: u256) -> Array<RebalanceAction>;
-    fn harvest_yield(ref self: TContractState) -> u256;
-    fn update_targets(ref self: TContractState, vesu_bps: u32, troves_bps: u32, idle_bps: u32);
-    fn set_rebalancer(ref self: TContractState, rebalancer: ContractAddress, authorized: bool);
-    fn get_targets(self: @TContractState) -> (u32, u32, u32);
-    fn get_strategy_performance(self: @TContractState, strategy: felt252) -> StrategyPerformance;
-    fn get_cumulative_yield(self: @TContractState) -> u256;
-    fn calculate_apy(self: @TContractState) -> u32;
-    fn update_rebalance_config(ref self: TContractState, threshold_bps: u32, min_interval: u64);
 }

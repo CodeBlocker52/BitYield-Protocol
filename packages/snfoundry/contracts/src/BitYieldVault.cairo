@@ -1,11 +1,49 @@
+use starknet::ContractAddress;
+
+// Vault configuration struct
+#[derive(Drop, Copy, Serde, starknet::Store)]
+pub struct VaultConfig {
+    pub asset: ContractAddress,
+    pub strategy_manager: ContractAddress,
+    pub vesu_adapter: ContractAddress,
+    pub troves_adapter: ContractAddress,
+    pub performance_fee_bps: u32,
+    pub management_fee_bps: u32,
+    pub fee_recipient: ContractAddress,
+    pub max_vesu_weight_bps: u32,
+    pub max_troves_weight_bps: u32,
+}
+
+#[starknet::interface]
+pub trait IBitYieldVault<TContractState> {
+    fn deposit(ref self: TContractState, assets: u256) -> u256;
+    fn withdraw(ref self: TContractState, shares: u256) -> u256;
+    fn total_assets(self: @TContractState) -> u256;
+    fn convert_to_shares(self: @TContractState, assets: u256) -> u256;
+    fn convert_to_assets(self: @TContractState, shares: u256) -> u256;
+    fn rebalance(ref self: TContractState, vesu_target_bps: u32, troves_target_bps: u32);
+    fn collect_fees(ref self: TContractState);
+    fn emergency_withdraw(ref self: TContractState);
+    fn pause(ref self: TContractState);
+    fn unpause(ref self: TContractState);
+    fn update_strategy(ref self: TContractState, strategy_type: felt252, new_address: ContractAddress);
+    fn update_fees(ref self: TContractState, performance_fee_bps: u32, management_fee_bps: u32);
+    fn get_config(self: @TContractState) -> VaultConfig;
+}
+
 #[starknet::contract]
 mod BitYieldVault {
+    use super::VaultConfig;
     use starknet::{ContractAddress, get_contract_address, get_caller_address, get_block_timestamp};
-    use openzeppelin::token::erc20::{ERC20Component, interface::{IERC20Dispatcher, IERC20DispatcherTrait}};
-    use openzeppelin::access::ownable::{OwnableComponent};
-    use openzeppelin::security::pausable::{PausableComponent};
-    use openzeppelin::security::reentrancyguard::{ReentrancyGuardComponent};
-    use openzeppelin::upgrades::upgradeable::{UpgradeableComponent};
+    use core::num::traits::Zero;
+    use openzeppelin_token::erc20::{ERC20Component, interface::{IERC20Dispatcher, IERC20DispatcherTrait}};
+    use openzeppelin_access::ownable::OwnableComponent;
+    use openzeppelin_security::pausable::PausableComponent;
+    use openzeppelin_security::reentrancyguard::ReentrancyGuardComponent;
+    use openzeppelin_upgrades::upgradeable::UpgradeableComponent;
+    use starknet::storage::{
+        StoragePointerReadAccess, StoragePointerWriteAccess, Map, StoragePathEntry
+    };
 
     component!(path: ERC20Component, storage: erc20, event: ERC20Event);
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
@@ -13,14 +51,41 @@ mod BitYieldVault {
     component!(path: ReentrancyGuardComponent, storage: reentrancy, event: ReentrancyEvent);
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
 
+    // Implement ImmutableConfig for ERC20
+  impl ERC20ImmutableConfig of ERC20Component::ImmutableConfig {
+    const DECIMALS: u8 = 8_u8;  // WBTC uses 8 decimals
+}
+
     #[abi(embed_v0)]
-    impl ERC20Impl = ERC20Component::ERC20Impl<ContractState>;
+    impl ERC20MixinImpl = ERC20Component::ERC20MixinImpl<ContractState>;
     #[abi(embed_v0)]
     impl OwnableImpl = OwnableComponent::OwnableImpl<ContractState>;
     impl OwnableInternalImpl = OwnableComponent::InternalImpl<ContractState>;
     impl ERC20InternalImpl = ERC20Component::InternalImpl<ContractState>;
     impl PausableInternalImpl = PausableComponent::InternalImpl<ContractState>;
     impl ReentrancyInternalImpl = ReentrancyGuardComponent::InternalImpl<ContractState>;
+    impl UpgradeableInternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
+
+    // Implement ERC20 Hooks (required by OpenZeppelin)
+    impl ERC20HooksImpl of ERC20Component::ERC20HooksTrait<ContractState> {
+        fn before_update(
+            ref self: ERC20Component::ComponentState<ContractState>,
+            from: ContractAddress,
+            recipient: ContractAddress,
+            amount: u256
+        ) {
+            // Custom logic before transfer (if needed)
+        }
+
+        fn after_update(
+            ref self: ERC20Component::ComponentState<ContractState>,
+            from: ContractAddress,
+            recipient: ContractAddress,
+            amount: u256
+        ) {
+            // Custom logic after transfer (if needed)
+        }
+    }
 
     #[storage]
     struct Storage {
@@ -34,34 +99,24 @@ mod BitYieldVault {
         reentrancy: ReentrancyGuardComponent::Storage,
         #[substorage(v0)]
         upgradeable: UpgradeableComponent::Storage,
-        
-        // Core vault state
-        asset: ContractAddress,  // WBTC token address
+        asset: ContractAddress,
         total_assets_deposited: u256,
-        
-        // Strategy configuration
         strategy_manager: ContractAddress,
         vesu_adapter: ContractAddress,
         troves_adapter: ContractAddress,
-        
-        // Fee configuration
-        performance_fee_bps: u32,  // basis points (1% = 100 bps)
+        performance_fee_bps: u32,
         management_fee_bps: u32,
         fee_recipient: ContractAddress,
         last_fee_collection: u64,
-        
-        // Pool allocation limits
-        max_vesu_weight_bps: u32,  // max % allocation to Vesu
-        max_troves_weight_bps: u32,  // max % allocation to Troves
-        
-        // User tracking
-        user_deposits: LegacyMap<ContractAddress, u256>,
+        max_vesu_weight_bps: u32,
+        max_troves_weight_bps: u32,
+        user_deposits: Map<ContractAddress, u256>,
         total_shares: u256,
     }
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub enum Event {
         #[flat]
         ERC20Event: ERC20Component::Event,
         #[flat]
@@ -72,7 +127,6 @@ mod BitYieldVault {
         ReentrancyEvent: ReentrancyGuardComponent::Event,
         #[flat]
         UpgradeableEvent: UpgradeableComponent::Event,
-        
         Deposit: Deposit,
         Withdraw: Withdraw,
         Rebalance: Rebalance,
@@ -81,55 +135,57 @@ mod BitYieldVault {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Deposit {
+    pub struct Deposit {
         #[key]
-        user: ContractAddress,
-        assets: u256,
-        shares: u256,
-        timestamp: u64,
+        pub user: ContractAddress,
+        pub assets: u256,
+        pub shares: u256,
+        pub timestamp: u64,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Withdraw {
+    pub struct Withdraw {
         #[key]
-        user: ContractAddress,
-        assets: u256,
-        shares: u256,
-        timestamp: u64,
+        pub user: ContractAddress,
+        pub assets: u256,
+        pub shares: u256,
+        pub timestamp: u64,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Rebalance {
-        vesu_allocation: u256,
-        troves_allocation: u256,
-        total_assets: u256,
-        timestamp: u64,
+    pub struct Rebalance {
+        pub vesu_allocation: u256,
+        pub troves_allocation: u256,
+        pub total_assets: u256,
+        pub timestamp: u64,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct FeeCollected {
-        performance_fee: u256,
-        management_fee: u256,
-        recipient: ContractAddress,
-        timestamp: u64,
+    pub struct FeeCollected {
+        pub performance_fee: u256,
+        pub management_fee: u256,
+        #[key]
+        pub recipient: ContractAddress,
+        pub timestamp: u64,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct StrategyUpdated {
-        strategy_type: felt252,
-        old_address: ContractAddress,
-        new_address: ContractAddress,
+    pub struct StrategyUpdated {
+        #[key]
+        pub strategy_type: felt252,
+        pub old_address: ContractAddress,
+        pub new_address: ContractAddress,
     }
 
-    mod Errors {
-        const ZERO_ADDRESS: felt252 = 'Zero address not allowed';
-        const ZERO_AMOUNT: felt252 = 'Amount must be greater than 0';
-        const INSUFFICIENT_BALANCE: felt252 = 'Insufficient balance';
-        const INSUFFICIENT_SHARES: felt252 = 'Insufficient shares';
-        const MAX_WEIGHT_EXCEEDED: felt252 = 'Max allocation weight exceeded';
-        const INVALID_FEE: felt252 = 'Invalid fee percentage';
-        const TRANSFER_FAILED: felt252 = 'Token transfer failed';
-    }
+    // Error constants
+    pub const ZERO_ADDRESS: felt252 = 'Zero address not allowed';
+    pub const ZERO_AMOUNT: felt252 = 'Amount must be greater than 0';
+    pub const INSUFFICIENT_BALANCE: felt252 = 'Insufficient balance';
+    pub const INSUFFICIENT_SHARES: felt252 = 'Insufficient shares';
+    pub const MAX_WEIGHT_EXCEEDED: felt252 = 'Max allocation weight exceeded';
+    pub const INVALID_FEE: felt252 = 'Invalid fee percentage';
+    pub const TRANSFER_FAILED: felt252 = 'Token transfer failed';
+    pub const INVALID_STRATEGY_TYPE: felt252 = 'Invalid strategy type';
 
     #[constructor]
     fn constructor(
@@ -159,23 +215,24 @@ mod BitYieldVault {
         self.max_troves_weight_bps.write(3000);
         
         self.last_fee_collection.write(get_block_timestamp());
+        self.total_assets_deposited.write(0);
+        self.total_shares.write(0);
     }
 
     #[abi(embed_v0)]
     impl BitYieldVaultImpl of super::IBitYieldVault<ContractState> {
-        /// Deposit WBTC into the vault and receive byWBTC shares
         fn deposit(ref self: ContractState, assets: u256) -> u256 {
             self.pausable.assert_not_paused();
             self.reentrancy.start();
             
-            assert(assets > 0, Errors::ZERO_AMOUNT);
+            assert!(assets > 0, "{}", ZERO_AMOUNT);
             let caller = get_caller_address();
             let this = get_contract_address();
             
             // Transfer WBTC from user to vault
             let asset_token = IERC20Dispatcher { contract_address: self.asset.read() };
             let success = asset_token.transfer_from(caller, this, assets);
-            assert(success, Errors::TRANSFER_FAILED);
+            assert!(success, "{}", TRANSFER_FAILED);
             
             // Calculate shares to mint (1:1 ratio for first deposit)
             let shares = self._convert_to_shares(assets);
@@ -184,10 +241,14 @@ mod BitYieldVault {
             self.erc20.mint(caller, shares);
             
             // Update state
-            let current_deposits = self.user_deposits.read(caller);
-            self.user_deposits.write(caller, current_deposits + assets);
-            self.total_assets_deposited.write(self.total_assets_deposited.read() + assets);
-            self.total_shares.write(self.total_shares.read() + shares);
+            let current_deposits = self.user_deposits.entry(caller).read();
+            self.user_deposits.entry(caller).write(current_deposits + assets);
+            
+            let current_total = self.total_assets_deposited.read();
+            self.total_assets_deposited.write(current_total + assets);
+            
+            let current_shares = self.total_shares.read();
+            self.total_shares.write(current_shares + shares);
             
             self.emit(Deposit {
                 user: caller,
@@ -200,17 +261,16 @@ mod BitYieldVault {
             shares
         }
 
-        /// Withdraw WBTC by burning byWBTC shares
         fn withdraw(ref self: ContractState, shares: u256) -> u256 {
             self.pausable.assert_not_paused();
             self.reentrancy.start();
             
-            assert(shares > 0, Errors::ZERO_AMOUNT);
+            assert!(shares > 0, "{}", ZERO_AMOUNT);
             let caller = get_caller_address();
             
             // Check user has enough shares
             let user_balance = self.erc20.balance_of(caller);
-            assert(user_balance >= shares, Errors::INSUFFICIENT_SHARES);
+            assert!(user_balance >= shares, "{}", INSUFFICIENT_SHARES);
             
             // Calculate assets to return
             let assets = self._convert_to_assets(shares);
@@ -224,11 +284,14 @@ mod BitYieldVault {
             // Transfer WBTC to user
             let asset_token = IERC20Dispatcher { contract_address: self.asset.read() };
             let success = asset_token.transfer(caller, assets);
-            assert(success, Errors::TRANSFER_FAILED);
+            assert!(success, "{}", TRANSFER_FAILED);
             
             // Update state
-            self.total_assets_deposited.write(self.total_assets_deposited.read() - assets);
-            self.total_shares.write(self.total_shares.read() - shares);
+            let current_total = self.total_assets_deposited.read();
+            self.total_assets_deposited.write(current_total - assets);
+            
+            let current_shares = self.total_shares.read();
+            self.total_shares.write(current_shares - shares);
             
             self.emit(Withdraw {
                 user: caller,
@@ -241,7 +304,6 @@ mod BitYieldVault {
             assets
         }
 
-        /// Get total assets under management
         fn total_assets(self: @ContractState) -> u256 {
             let idle_assets = self._get_idle_balance();
             let vesu_assets = self._get_vesu_balance();
@@ -250,25 +312,22 @@ mod BitYieldVault {
             idle_assets + vesu_assets + troves_assets
         }
 
-        /// Convert assets to shares
         fn convert_to_shares(self: @ContractState, assets: u256) -> u256 {
             self._convert_to_shares(assets)
         }
 
-        /// Convert shares to assets
         fn convert_to_assets(self: @ContractState, shares: u256) -> u256 {
             self._convert_to_assets(shares)
         }
 
-        /// Rebalance assets across strategies
         fn rebalance(ref self: ContractState, vesu_target_bps: u32, troves_target_bps: u32) {
             self.ownable.assert_only_owner();
             self.pausable.assert_not_paused();
             
             // Validate allocations
-            assert(vesu_target_bps <= self.max_vesu_weight_bps.read(), Errors::MAX_WEIGHT_EXCEEDED);
-            assert(troves_target_bps <= self.max_troves_weight_bps.read(), Errors::MAX_WEIGHT_EXCEEDED);
-            assert(vesu_target_bps + troves_target_bps <= 10000, Errors::MAX_WEIGHT_EXCEEDED);
+            assert!(vesu_target_bps <= self.max_vesu_weight_bps.read(), "{}", MAX_WEIGHT_EXCEEDED);
+            assert!(troves_target_bps <= self.max_troves_weight_bps.read(), "{}", MAX_WEIGHT_EXCEEDED);
+            assert!(vesu_target_bps + troves_target_bps <= 10000, "{}", MAX_WEIGHT_EXCEEDED);
             
             // Collect fees before rebalancing
             self._collect_fees();
@@ -288,47 +347,43 @@ mod BitYieldVault {
             });
         }
 
-        /// Collect performance and management fees
         fn collect_fees(ref self: ContractState) {
             self.ownable.assert_only_owner();
             self._collect_fees();
         }
 
-        /// Emergency withdrawal - pull all funds from strategies
         fn emergency_withdraw(ref self: ContractState) {
             self.ownable.assert_only_owner();
             self._emergency_withdraw_all();
         }
 
-        /// Pause deposits and withdrawals
         fn pause(ref self: ContractState) {
             self.ownable.assert_only_owner();
             self.pausable.pause();
         }
 
-        /// Unpause deposits and withdrawals
         fn unpause(ref self: ContractState) {
             self.ownable.assert_only_owner();
             self.pausable.unpause();
         }
 
-        /// Update strategy adapter addresses
         fn update_strategy(ref self: ContractState, strategy_type: felt252, new_address: ContractAddress) {
             self.ownable.assert_only_owner();
-            assert(!new_address.is_zero(), Errors::ZERO_ADDRESS);
+            assert!(!new_address.is_zero(), "{}", ZERO_ADDRESS);
             
-            let old_address = if strategy_type == 'vesu' {
+            let (old_address, valid_type) = if strategy_type == 'vesu' {
                 let old = self.vesu_adapter.read();
                 self.vesu_adapter.write(new_address);
-                old
+                (old, true)
             } else if strategy_type == 'troves' {
                 let old = self.troves_adapter.read();
                 self.troves_adapter.write(new_address);
-                old
+                (old, true)
             } else {
-                panic_with_felt252('Invalid strategy type');
-                starknet::contract_address_const::<0>()
+                (Zero::zero(), false)
             };
+            
+            assert!(valid_type, "{}", INVALID_STRATEGY_TYPE);
             
             self.emit(StrategyUpdated {
                 strategy_type,
@@ -337,17 +392,15 @@ mod BitYieldVault {
             });
         }
 
-        /// Update fee configuration
         fn update_fees(ref self: ContractState, performance_fee_bps: u32, management_fee_bps: u32) {
             self.ownable.assert_only_owner();
-            assert(performance_fee_bps <= 2000, Errors::INVALID_FEE);  // Max 20%
-            assert(management_fee_bps <= 500, Errors::INVALID_FEE);  // Max 5%
+            assert!(performance_fee_bps <= 2000, "{}", INVALID_FEE);  // Max 20%
+            assert!(management_fee_bps <= 500, "{}", INVALID_FEE);  // Max 5%
             
             self.performance_fee_bps.write(performance_fee_bps);
             self.management_fee_bps.write(management_fee_bps);
         }
 
-        /// Get vault configuration
         fn get_config(self: @ContractState) -> VaultConfig {
             VaultConfig {
                 asset: self.asset.read(),
@@ -394,13 +447,12 @@ mod BitYieldVault {
         }
 
         fn _get_vesu_balance(self: @ContractState) -> u256 {
-            // Call Vesu adapter to get deposited amount
-            // Implementation depends on Vesu adapter interface
+            // TODO: Call Vesu adapter to get deposited amount
             0  // Placeholder
         }
 
         fn _get_troves_balance(self: @ContractState) -> u256 {
-            // Call Troves adapter to get deposited amount
+            // TODO: Call Troves adapter to get deposited amount
             0  // Placeholder
         }
 
@@ -410,13 +462,13 @@ mod BitYieldVault {
                 return;
             }
             
-            // Withdraw from strategies as needed
-            let deficit = amount_needed - idle;
+            // TODO: Withdraw from strategies as needed
+            let _deficit = amount_needed - idle;
             // Implement withdrawal logic from Vesu/Troves
         }
 
-        fn _execute_rebalance(ref self: ContractState, vesu_target: u256, troves_target: u256) {
-            // Implementation depends on strategy manager and adapter interfaces
+        fn _execute_rebalance(ref self: ContractState, _vesu_target: u256, _troves_target: u256) {
+            // TODO: Implementation depends on strategy manager and adapter interfaces
         }
 
         fn _collect_fees(ref self: ContractState) {
@@ -453,38 +505,7 @@ mod BitYieldVault {
         }
 
         fn _emergency_withdraw_all(ref self: ContractState) {
-            // Withdraw everything from all strategies
-            // Implementation depends on adapter interfaces
+            // TODO: Withdraw everything from all strategies
         }
     }
-}
-
-#[starknet::interface]
-trait IBitYieldVault<TContractState> {
-    fn deposit(ref self: TContractState, assets: u256) -> u256;
-    fn withdraw(ref self: TContractState, shares: u256) -> u256;
-    fn total_assets(self: @TContractState) -> u256;
-    fn convert_to_shares(self: @TContractState, assets: u256) -> u256;
-    fn convert_to_assets(self: @TContractState, shares: u256) -> u256;
-    fn rebalance(ref self: TContractState, vesu_target_bps: u32, troves_target_bps: u32);
-    fn collect_fees(ref self: TContractState);
-    fn emergency_withdraw(ref self: TContractState);
-    fn pause(ref self: TContractState);
-    fn unpause(ref self: TContractState);
-    fn update_strategy(ref self: TContractState, strategy_type: felt252, new_address: ContractAddress);
-    fn update_fees(ref self: TContractState, performance_fee_bps: u32, management_fee_bps: u32);
-    fn get_config(self: @TContractState) -> VaultConfig;
-}
-
-#[derive(Drop, Serde, starknet::Store)]
-struct VaultConfig {
-    asset: ContractAddress,
-    strategy_manager: ContractAddress,
-    vesu_adapter: ContractAddress,
-    troves_adapter: ContractAddress,
-    performance_fee_bps: u32,
-    management_fee_bps: u32,
-    fee_recipient: ContractAddress,
-    max_vesu_weight_bps: u32,
-    max_troves_weight_bps: u32,
 }

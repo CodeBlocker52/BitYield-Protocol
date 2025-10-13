@@ -2,6 +2,7 @@ use starknet::ContractAddress;
 
 #[derive(Drop, Copy, Serde, starknet::Store, PartialEq)]
 pub enum BridgeStatus {
+    #[default]  // CRITICAL: This is required for Store trait
     Pending,
     Confirmed,
     Completed,
