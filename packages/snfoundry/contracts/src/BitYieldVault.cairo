@@ -504,8 +504,6 @@ mod BitYieldVault {
             self.last_fee_collection.write(current_time);
         }
 
-        fn _emergency_withdraw_all(ref self: ContractState) {
-            // TODO: Withdraw everything from all strategies
-        }
+       
     }
 }
