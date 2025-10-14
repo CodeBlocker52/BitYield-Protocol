@@ -7,7 +7,6 @@ import { AgentMessage, AgentStatus } from "../../hooks/useAgent";
 
 interface ChatAreaProps {
   messages: ChatMessageData[];
-  agentMessages?: AgentMessage[];
   inputMessage: string;
   setInputMessage: (message: string) => void;
   onSendMessage: () => void;
@@ -20,7 +19,6 @@ interface ChatAreaProps {
 
 export const ChatArea: React.FC<ChatAreaProps> = ({
   messages,
-  agentMessages,
   inputMessage,
   setInputMessage,
   onSendMessage,
@@ -37,7 +35,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
         <ChatMessages
           messages={messages}
-          agentMessages={agentMessages}
           isTyping={isTyping}
           onSuggestionClick={onSuggestionClick}
           useAgentMessages={useAgentMessages}

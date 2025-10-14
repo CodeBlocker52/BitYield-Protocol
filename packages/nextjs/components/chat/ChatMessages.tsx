@@ -6,7 +6,6 @@ import { TypingIndicator } from "./TypingIndicator";
 
 interface ChatMessagesProps {
   messages: ChatMessageData[];
-  agentMessages?: ChatMessageData[];
   isTyping: boolean;
   onSuggestionClick: (action: string) => void;
   useAgentMessages?: boolean;
@@ -15,7 +14,6 @@ interface ChatMessagesProps {
 
 export const ChatMessages: React.FC<ChatMessagesProps> = ({
   messages,
-  agentMessages = [],
   isTyping,
   onSuggestionClick,
   useAgentMessages = false,
