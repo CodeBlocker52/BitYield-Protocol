@@ -13,7 +13,7 @@ const initialChatMessages: ChatMessageData[] = [
   {
     type: "bot",
     message:
-      "Welcome to BitYield AI! I'm your intelligent DeFi advisor powered by Hedera's AI Agent Kit. I can help you discover yield opportunities, analyze risks, execute strategies, and manage your portfolio.\n\n🤖 **Agent Status**: Connecting to advanced DeFi capabilities...\n\nHow can I assist you today?",
+      "Welcome to BitYield AI! I'm your intelligent DeFi advisor built using LangGraph. I can help you discover yield opportunities, analyze risks, execute strategies, and manage your portfolio.\n\n🤖 **Agent Status**: Connecting to advanced DeFi capabilities...\n\nHow can I assist you today?",
     timestamp: "Just now",
     suggestions: [
       { text: "Check my balance", type: "info", action: "checkBalance" },
@@ -90,7 +90,7 @@ export const useChatService = () => {
 
     const updatedInitialMessage: ChatMessageData = {
       ...initialChatMessages[0],
-      message: `Welcome to BitYield AI! I'm your intelligent DeFi advisor powered by Hedera's AI Agent Kit. I can help you discover yield opportunities, analyze risks, execute strategies, and manage your portfolio.\n\n${statusMessage}\n\nHow can I assist you today?`,
+      message: `Welcome to BitYield AI! I'm your intelligent DeFi advisor built using LangGraph. I can help you discover yield opportunities, analyze risks, execute strategies, and manage your portfolio.\n\n${statusMessage}\n\nHow can I assist you today?`,
     };
 
     setMessages((prev) => [updatedInitialMessage, ...prev.slice(1)]);
@@ -216,7 +216,7 @@ export const useChatService = () => {
       const suggestionResponses: Record<string, Partial<ChatMessageData>> = {
         checkBalance: {
           message:
-            "🔍 **Balance Check**\n\nTo check your balances, I need to connect to the BitYield AI agent which provides real-time Hedera network data.\n\n⏳ **Current Status**: Establishing connection...\n\nOnce connected, I can show you:\n• HBAR balance\n• Token balances (USDC, SAUCE)\n• Pending transactions\n• Active order reserves",
+            "🔍 **Balance Check**\n\nTo check your balances, I need to connect to the BitYield AI agent which provides real-time Starknet network data.\n\n⏳ **Current Status**: Establishing connection...\n\nOnce connected, I can show you:\n• HBAR balance\n• Token balances (USDC, SAUCE)\n• Pending transactions\n• Active order reserves",
           suggestions: [
             {
               text: "Retry connection",

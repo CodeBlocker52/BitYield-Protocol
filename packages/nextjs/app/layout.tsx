@@ -4,9 +4,9 @@ import "~~/styles/globals.css";
 import { ThemeProvider } from "~~/components/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "Scaffold-Stark",
-  description: "Fast track your starknet journey",
-  icons: "/logo.ico",
+  title: "BitYield Protocol",
+  description: "Starknet Yield Farming Dashboard",
+  icons: "/BitYieldLogo.png",
 };
 
 const ScaffoldStarkApp = ({ children }: { children: React.ReactNode }) => {
