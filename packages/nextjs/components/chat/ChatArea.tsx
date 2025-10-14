@@ -15,7 +15,7 @@ interface ChatAreaProps {
   onSuggestionClick: (action: string) => void;
   agentStatus?: AgentStatus;
   useAgentMessages?: boolean;
-  network?: 'mainnet' | 'testnet' | 'previewnet';
+  network?: 'mainnet' | 'testnet';
 }
 
 export const ChatArea: React.FC<ChatAreaProps> = ({

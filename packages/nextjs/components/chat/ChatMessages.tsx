@@ -10,7 +10,7 @@ interface ChatMessagesProps {
   isTyping: boolean;
   onSuggestionClick: (action: string) => void;
   useAgentMessages?: boolean;
-  network?: 'mainnet' | 'testnet' | 'previewnet';
+  network?: 'mainnet' | 'testnet';
 }
 
 export const ChatMessages: React.FC<ChatMessagesProps> = ({

@@ -83,10 +83,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               <User className="h-5 w-5 text-muted-foreground" />
             ) : (
               <img
-                src="/yieldCraftLogo.png"
-                alt="YieldCraft Logo"
-                width={70}
-                height={70}
+                src="/BitYieldLogo.png"
+                alt="BitYield Logo"
+                className="rounded-full"
+                width={40}
+                height={40}
               />
             )}
           </div>

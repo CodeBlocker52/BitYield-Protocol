@@ -6,7 +6,7 @@ import { getHashScanUrl } from "../../utils/tokenConfig";
 
 interface TransactionLinkProps {
   txHash: string;
-  network?: 'mainnet' | 'testnet' | 'previewnet';
+  network?: 'mainnet' | 'testnet';
   className?: string;
   showCopyButton?: boolean;
 }

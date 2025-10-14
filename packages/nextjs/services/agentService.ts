@@ -1,5 +1,5 @@
 // services/agentService.ts
-import { io, Socket } from 'socket.io-client';
+import { io, Socket } from "socket.io-client";
 
 interface AgentResponse {
   message: string;
@@ -13,7 +13,7 @@ interface AgentError {
 }
 
 interface AgentStatus {
-  type: 'thinking' | 'ready' | 'error';
+  type: "thinking" | "ready" | "error";
   message: string;
 }
 
@@ -24,7 +24,7 @@ class AgentService {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
 
-  constructor(serverUrl = 'http://localhost:3001') {
+  constructor(serverUrl = "http://localhost:3001") {
     this.serverUrl = serverUrl;
   }
 
@@ -36,33 +36,33 @@ class AgentService {
       }
 
       this.socket = io(this.serverUrl, {
-        transports: ['websocket', 'polling'],
+        transports: ["websocket", "polling"],
         timeout: 10000,
         reconnection: true,
         reconnectionAttempts: this.maxReconnectAttempts,
         reconnectionDelay: this.reconnectDelay,
       });
 
-      this.socket.on('connect', () => {
-        console.log('✅ Connected to YieldCraft AI Agent');
+      this.socket.on("connect", () => {
+        console.log("✅ Connected to BitYield AI Agent");
         this.reconnectAttempts = 0;
         resolve(true);
       });
 
-      this.socket.on('connect_error', (error) => {
-        console.error('❌ Agent connection failed:', error);
+      this.socket.on("connect_error", (error) => {
+        console.error("❌ Agent connection failed:", error);
         reject(error);
       });
 
-      this.socket.on('disconnect', (reason) => {
-        console.log('🔌 Disconnected from agent:', reason);
+      this.socket.on("disconnect", (reason) => {
+        console.log("🔌 Disconnected from agent:", reason);
         this.handleReconnection();
       });
 
       // Set connection timeout
       setTimeout(() => {
         if (!this.socket?.connected) {
-          reject(new Error('Connection timeout'));
+          reject(new Error("Connection timeout"));
         }
       }, 10000);
     });
@@ -71,7 +71,9 @@ class AgentService {
   private handleReconnection() {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
-      console.log(`🔄 Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+      console.log(
+        `🔄 Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+      );
     }
   }
 
@@ -86,24 +88,24 @@ class AgentService {
   sendMessage(message: string, sessionId?: string): Promise<AgentResponse> {
     return new Promise((resolve, reject) => {
       if (!this.socket?.connected) {
-        reject(new Error('Not connected to agent server'));
+        reject(new Error("Not connected to agent server"));
         return;
       }
 
       const timeout = setTimeout(() => {
-        reject(new Error('Agent response timeout'));
+        reject(new Error("Agent response timeout"));
       }, 45000);
 
-      this.socket.emit('message', { message, sessionId });
+      this.socket.emit("message", { message, sessionId });
 
-      this.socket.once('response', (response: AgentResponse) => {
+      this.socket.once("response", (response: AgentResponse) => {
         clearTimeout(timeout);
         resolve(response);
       });
 
-      this.socket.once('error', (error: AgentError) => {
+      this.socket.once("error", (error: AgentError) => {
         clearTimeout(timeout);
-        reject(new Error(error.message || 'Agent error'));
+        reject(new Error(error.message || "Agent error"));
       });
     });
   }
@@ -111,9 +113,9 @@ class AgentService {
   // REST API fallback
   async sendMessageHTTP(message: string): Promise<AgentResponse> {
     const response = await fetch(`${this.serverUrl}/api/chat`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ message }),
     });
@@ -133,13 +135,13 @@ class AgentService {
   // Status monitoring
   onStatus(callback: (status: AgentStatus) => void) {
     if (this.socket) {
-      this.socket.on('status', callback);
+      this.socket.on("status", callback);
     }
   }
 
   offStatus(callback: (status: AgentStatus) => void) {
     if (this.socket) {
-      this.socket.off('status', callback);
+      this.socket.off("status", callback);
     }
   }
 
@@ -148,9 +150,9 @@ class AgentService {
     try {
       const response = await fetch(`${this.serverUrl}/api/health`);
       const data = await response.json();
-      return data.status === 'healthy' && data.agent === 'ready';
+      return data.status === "healthy" && data.agent === "ready";
     } catch (error) {
-      console.error('Health check failed:', error);
+      console.error("Health check failed:", error);
       return false;
     }
   }

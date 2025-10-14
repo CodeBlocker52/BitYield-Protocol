@@ -15,8 +15,8 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({
       <div className="flex items-start space-x-3">
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
           <img
-            src="/yieldCraftLogo.png"
-            alt="YieldCraft Logo"
+            src="/BitYieldLogo.png"
+            alt="BitYield Logo"
             width={70}
             height={70}
           />
