@@ -62,7 +62,7 @@ BitYield provides:
 │  ┌──────────────┐  ┌──────────────┐  ┌─────────────────┐  │
 │  │ Vesu Markets │  │    Troves    │  │  Endurfi (TBD)  │  │
 │  │   (Lending)  │  │  (Staking)   │  │   (Strategies)  │  │
-│  └──────────────┘  └──────────────┘  └─────────────────┘  │
+│  └──────────────┘  └──────────────┘  └────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -511,4 +511,4 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ---
 
-**Built with ❤️ for the Starknet ecosystem**
+**Built with ❤️ for the Starknet Re{Solve} Hackathon 2025**
