@@ -22,9 +22,11 @@ const ScaffoldStarkApp = ({ children }: { children: React.ReactNode }) => {
   useNativeCurrencyPrice();
   const { resolvedTheme } = useTheme();
   const isDarkMode = resolvedTheme === "dark";
+  
   return (
     <>
       <div className="flex relative flex-col min-h-screen bg-main">
+        {/* Gradient Background Effects */}
         {isDarkMode ? (
           <>
             <div className="circle-gradient-dark w-[330px] h-[330px]"></div>
@@ -40,7 +42,16 @@ const ScaffoldStarkApp = ({ children }: { children: React.ReactNode }) => {
         <main className="relative flex flex-col flex-1">{children}</main>
         {/* <Footer /> */}
       </div>
-      <Toaster />
+      <Toaster 
+        position="bottom-right"
+        toastOptions={{
+          duration: 5000,
+          style: {
+            background: isDarkMode ? '#2a3655' : '#ffffff',
+            color: isDarkMode ? '#fff9fb' : '#212638',
+          },
+        }}
+      />
     </>
   );
 };
@@ -64,6 +75,7 @@ export const ScaffoldStarkAppWithProviders = ({
       provider={provider}
       connectors={connectors}
       explorer={starkscan}
+      autoConnect={true} // Enable auto-reconnect
     >
       <ScaffoldStarkApp>{children}</ScaffoldStarkApp>
     </StarknetConfig>

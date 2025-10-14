@@ -18,6 +18,7 @@ import {
   FileText,
 } from "lucide-react";
 import Image from "next/image";
+import WalletConnectButton from "~~/components/wallet/WalletConnectButton";
 
 export default function BitYieldLanding() {
   const [scrolled, setScrolled] = useState(false);
@@ -153,6 +154,7 @@ export default function BitYieldLanding() {
               <button className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-purple-600 rounded-lg font-semibold hover:shadow-lg hover:shadow-purple-500/50 transition-all">
                 <a href="/yield">Launch App</a>
               </button>
+              <WalletConnectButton />
             </div>
 
             {/* Mobile Menu Button */}

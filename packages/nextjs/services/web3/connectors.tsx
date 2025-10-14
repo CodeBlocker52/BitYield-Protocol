@@ -1,16 +1,20 @@
-import { braavos, InjectedConnector, ready } from "@starknet-react/core";
+import { 
+  braavos, 
+  argent,
+  InjectedConnector, 
+  ready 
+} from "@starknet-react/core";
 import { getTargetNetworks } from "~~/utils/scaffold-stark";
 import { BurnerConnector } from "@scaffold-stark/stark-burner";
 import scaffoldConfig from "~~/scaffold.config";
 import { LAST_CONNECTED_TIME_LOCALSTORAGE_KEY } from "~~/utils/Constants";
-import { KeplrConnector } from "./keplr";
 import { supportedChains } from "~~/supportedChains";
 
 const targetNetworks = getTargetNetworks();
 
 export const connectors = getConnectors();
 
-// workaround helper function to properly disconnect with removing local storage (prevent autoconnect infinite loop)
+// Workaround helper function to properly disconnect with removing local storage
 function withDisconnectWrapper(connector: InjectedConnector) {
   const connectorDisconnect = connector.disconnect;
   const _disconnect = (): Promise<void> => {
@@ -25,20 +29,32 @@ function withDisconnectWrapper(connector: InjectedConnector) {
 function getConnectors() {
   const { targetNetworks } = scaffoldConfig;
 
-  const connectors: InjectedConnector[] = [ready(), braavos()];
+  // Base connectors for production wallets
+  const connectors: InjectedConnector[] = [];
+
+  // Check if we're on devnet
   const isDevnet = targetNetworks.some(
     (network) => (network.network as string) === "devnet",
   );
 
-  if (!isDevnet) {
-    connectors.push(new KeplrConnector());
-  } else {
+  // PRODUCTION WALLETS (Always available)
+  // ArgentX - Most popular Starknet wallet
+  connectors.push(argent());
+  
+  // Braavos - Second most popular
+  connectors.push(braavos());
+
+  // DEVELOPMENT ONLY - Burner Wallet
+  if (isDevnet && !scaffoldConfig.onlyLocalBurnerWallet) {
     const burnerConnector = new BurnerConnector();
     burnerConnector.chain = supportedChains.devnet;
     connectors.push(burnerConnector as unknown as InjectedConnector);
   }
 
-  return connectors.sort(() => Math.random() - 0.5).map(withDisconnectWrapper);
+  // REMOVED: KeplrConnector (This is for Cosmos, not Starknet!)
+  // REMOVED: Random sorting - Keep wallets in consistent order
+
+  return connectors.map(withDisconnectWrapper);
 }
 
 export const appChains = targetNetworks;

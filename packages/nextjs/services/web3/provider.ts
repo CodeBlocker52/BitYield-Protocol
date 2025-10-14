@@ -17,6 +17,7 @@ const currentNetwork = scaffoldConfig.targetNetworks[0];
 const currentNetworkName = currentNetwork.network;
 
 export const getRpcUrl = (networkName: string): string => {
+  // Environment variables from .env.local
   const devnetRpcUrl = process.env.NEXT_PUBLIC_DEVNET_PROVIDER_URL;
   const sepoliaRpcUrl = process.env.NEXT_PUBLIC_SEPOLIA_PROVIDER_URL;
   const mainnetRpcUrl = process.env.NEXT_PUBLIC_MAINNET_PROVIDER_URL;
@@ -29,13 +30,18 @@ export const getRpcUrl = (networkName: string): string => {
       break;
     case "sepolia":
       rpcUrl =
-        sepoliaRpcUrl || "https://starknet-sepolia.public.blastapi.io/rpc/v0_9";
+        sepoliaRpcUrl || 
+        "https://starknet-sepolia.public.blastapi.io/rpc/v0_7" || // Updated to v0_7
+        "https://free-rpc.nethermind.io/sepolia-juno/v0_7";
       break;
     case "mainnet":
       rpcUrl =
-        mainnetRpcUrl || "https://starknet-mainnet.public.blastapi.io/rpc/v0_9";
+        mainnetRpcUrl || 
+        "https://starknet-mainnet.public.blastapi.io/rpc/v0_7" || // Updated to v0_7
+        "https://free-rpc.nethermind.io/mainnet-juno/v0_7";
       break;
     default:
+      console.warn(`Unknown network: ${networkName}. Defaulting to devnet.`);
       rpcUrl = "http://127.0.0.1:5050";
       break;
   }
@@ -46,15 +52,11 @@ export const getRpcUrl = (networkName: string): string => {
 // Get RPC URL for the current network
 const rpcUrl = getRpcUrl(currentNetworkName);
 
-// Important: if the rpcUrl is empty (not configed in .env), we use the publicProvider
-// which randomly choose a provider from the chain list of public providers.
-// Some public provider might have strict rate limits.
-if (rpcUrl === "") {
-  console.warn(
-    `No RPC Provider URL configured for ${currentNetworkName}. Using public provider.`,
-  );
-}
+// Log configuration for debugging
+console.log(`🌐 Network: ${currentNetworkName}`);
+console.log(`🔗 RPC URL: ${rpcUrl || "Using public provider"}`);
 
+// Provider configuration
 const provider =
   rpcUrl === "" || containsDevnet(scaffoldConfig.targetNetworks)
     ? publicProvider()
