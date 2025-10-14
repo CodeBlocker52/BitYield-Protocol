@@ -12,6 +12,7 @@ import {
   ChevronRight,
   AlertCircle,
 } from "lucide-react";
+import Image from "next/image";
 
 // ============================================
 // TYPES & INTERFACES
@@ -122,7 +123,7 @@ const ChatMessageComponent: React.FC<{
             {isUser ? (
               <User className="w-5 h-5 text-slate-300" />
             ) : (
-              <img
+              <Image
                 src="/BitYieldLogo.png"
                 alt="BitYield Logo"
                 className="rounded-full"
@@ -193,7 +194,7 @@ const TypingIndicator: React.FC<{ isVisible: boolean }> = ({ isVisible }) => {
   return (
     <div className="flex items-start gap-3 mb-6">
       <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-orange-500 to-purple-600">
-        <img
+        <Image
           src="/BitYieldLogo.png"
           alt="BitYield Logo"
           className="rounded-full"
@@ -349,7 +350,7 @@ export default function BitYieldChatAgent() {
           <div className="px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <img
+                <Image
                   src="/BitYieldLogo.png"
                   alt="BitYield Logo"
                   className="rounded-xl"

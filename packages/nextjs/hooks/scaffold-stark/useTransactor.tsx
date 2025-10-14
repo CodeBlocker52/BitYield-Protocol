@@ -173,16 +173,16 @@ export const useTransactor = (
             // Set resource bounds for RPC 0.8 compatibility
             resourceBounds: {
               l1_gas: {
-                max_amount: 0x1000000n,
-                max_price_per_unit: 0x1n,
+                max_amount: "0x1000000",
+                max_price_per_unit: "0x1",
               },
               l2_gas: {
-                max_amount: 0x1000000n,
-                max_price_per_unit: 0x1n,
+                max_amount: "0x1000000",
+                max_price_per_unit: "0x1",
               },
               l1_data_gas: {
-                max_amount: 0x1000000n,
-                max_price_per_unit: 0x1n,
+                max_amount: "0x1000000",
+                max_price_per_unit: "0x1",
               },
             },
           };

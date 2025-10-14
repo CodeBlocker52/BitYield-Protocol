@@ -1,6 +1,7 @@
 // components/agent/TokenDisplay.tsx
 import React from "react";
 import { getTokenInfo } from "../../utils/tokenConfig";
+import Image from "next/image";
 
 interface TokenDisplayProps {
   symbol: string;
@@ -33,7 +34,7 @@ export const TokenDisplay: React.FC<TokenDisplayProps> = ({
 
   return (
     <span className={`inline-flex items-center space-x-1 ${className}`}>
-      <img
+      <Image
         src={tokenInfo.icon}
         alt={tokenInfo.name}
         className={`${sizeClasses[size]} rounded-full flex-shrink-0`}

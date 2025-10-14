@@ -1,4 +1,5 @@
 // components/chat/TypingIndicator.tsx
+import Image from "next/image";
 import React from "react";
 
 interface TypingIndicatorProps {
@@ -14,7 +15,7 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({
     <div className="flex justify-start">
       <div className="flex items-start space-x-3">
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
-          <img
+          <Image
             src="/BitYieldLogo.png"
             alt="BitYield Logo"
             width={70}

@@ -11,6 +11,7 @@ import {
 import { TransactionLink } from "./TransactionLink";
 import { TokenDisplay } from "./TokenDisplay";
 import { ChatMessageData } from "../chat/ChatMessage";
+import Image from "next/image";
 
 interface AgentChatMessageProps {
   message: ChatMessageData;
@@ -280,7 +281,7 @@ export const AgentChatMessage: React.FC<AgentChatMessageProps> = ({
             {isUser ? (
               <User className="h-5 w-5 text-muted-foreground" />
             ) : (
-              <img
+              <Image
                 src="/BitYieldLogo.png"
                 alt="BitYield Logo"
                 className="rounded-full"

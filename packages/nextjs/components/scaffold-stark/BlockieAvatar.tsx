@@ -1,6 +1,7 @@
 "use client";
 
 import { blo } from "blo";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 
 interface BlockieAvatarProps {
@@ -41,7 +42,7 @@ export const BlockieAvatar = ({
   return (
     // Don't want to use nextJS Image here (and adding remote patterns for the URL)
     // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <Image
       className="rounded-full"
       src={avatarSrc}
       width={size}

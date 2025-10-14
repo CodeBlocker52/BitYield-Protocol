@@ -9,6 +9,7 @@ import {
   Info,
   Sparkles,
 } from "lucide-react";
+import Image from "next/image";
 
 export interface ChatSuggestion {
   text: string;
@@ -82,7 +83,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
             {message.type === "user" ? (
               <User className="h-5 w-5 text-muted-foreground" />
             ) : (
-              <img
+              <Image
                 src="/BitYieldLogo.png"
                 alt="BitYield Logo"
                 className="rounded-full"

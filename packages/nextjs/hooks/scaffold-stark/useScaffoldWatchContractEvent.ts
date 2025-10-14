@@ -14,7 +14,6 @@ import { useProvider } from "@starknet-react/core";
 import { useTargetNetwork } from "./useTargetNetwork";
 import {
   CallData,
-  createAbiParser,
   hash,
   RpcProvider,
   events as starknetEvents,
@@ -69,7 +68,7 @@ export const useScaffoldWatchContractEvent = <
     return (deployedContractData?.abi as Abi)?.filter(
       (part) =>
         part.type === "event" &&
-        part.name.split("::").slice(-1)[0] === (eventName as string),
+        part.name.split("::").slice(-1)[0] === (eventName as string)
     ) as ExtractAbiEvent<ContractAbi<TContractName>, TEventName>[];
   }, [deployedContractData, deployedContractLoading]);
 
@@ -79,7 +78,7 @@ export const useScaffoldWatchContractEvent = <
 
   if (matchingAbiEvents?.length > 1) {
     throw new Error(
-      `Ambiguous event "${eventName as string}". ABI contains ${matchingAbiEvents?.length} events with that name`,
+      `Ambiguous event "${eventName as string}". ABI contains ${matchingAbiEvents?.length} events with that name`
     );
   }
 
@@ -101,7 +100,7 @@ export const useScaffoldWatchContractEvent = <
       }
 
       const event = (deployedContractData?.abi as Abi).find(
-        (part) => part?.type === "event" && part?.name === fullName,
+        (part) => part?.type === "event" && part?.name === fullName
       ) as ExtractAbiEvent<ContractAbi<TContractName>, TEventName>;
 
       if (!event) {
@@ -148,8 +147,7 @@ export const useScaffoldWatchContractEvent = <
           log,
           starknetEvents.getAbiEvents(deployedContractData?.abi),
           CallData.getAbiStruct(deployedContractData?.abi),
-          CallData.getAbiEnum(deployedContractData?.abi),
-          createAbiParser(deployedContractData?.abi),
+          CallData.getAbiEnum(deployedContractData?.abi)
         );
 
         const args =
@@ -205,7 +203,7 @@ export const useScaffoldWatchContractEvent = <
         respondToEvents();
       }
     },
-    targetNetwork.id !== devnet.id ? scaffoldConfig.pollingInterval : 4_000,
+    targetNetwork.id !== devnet.id ? scaffoldConfig.pollingInterval : 4_000
   );
 
   return {
