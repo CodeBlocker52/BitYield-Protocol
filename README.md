@@ -1,6 +1,6 @@
 # BitYield Protocol - Bitcoin Native Yield Aggregator on Starknet
 
-**BitYield Protocol** enables Bitcoin holders to earn DeFi yields on Starknet without complex bridging or wrapping processes. One-click Bitcoin → Starknet yield farming with automated optimization across multiple protocols.
+**BitYield Protocol** enables Bitcoin holders to earn DeFi yields on Starknet without complex bridging or wrapping processes. One-Query for Bitcoin → Starknet yield farming with automated optimization across multiple protocols.
 
 ---
 
