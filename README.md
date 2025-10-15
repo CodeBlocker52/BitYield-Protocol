@@ -1,8 +1,8 @@
 # BitYield Protocol - Bitcoin Native Yield Aggregator on Starknet
 
-**BitYield Protocol** enables Bitcoin holders to earn DeFi yields on Starknet without complex bridging or wrapping processes. One-Query for Bitcoin → Starknet yield farming with automated optimization across multiple protocols.
+**BitYield Protocol** enables Bitcoin holders to earn DeFi yields on Starknet without complex bridging or wrapping processes. Single Query for Bitcoin to Starknet yield farming with automated optimization across multiple protocols.
 
----
+
 
 ## 🎯 Problem & Solution
 
@@ -15,15 +15,17 @@ Bitcoin holders cannot easily access DeFi yields without:
 
 ### Solution
 BitYield provides:
-- ✅ **One-click Bitcoin deposits** via Atomiq integration
-- ✅ **Automatic WBTC conversion** on Starknet
-- ✅ **Yield optimization** across Vesu lending markets and Troves strategies
-- ✅ **Automated rebalancing** via Cairo smart contracts
-- ✅ **Xverse wallet integration** for seamless UX
+- **One-click Bitcoin deposits** via Atomiq integration
+- **Automatic WBTC conversion** on Starknet
+- **Yield optimization** across Vesu lending markets and Troves strategies
+- **Automated rebalancing** via Cairo smart contracts
+- **Xverse wallet integration** for seamless UX
 
 ---
 
 ## 🏗️ Architecture
+
+<div align="center">
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -42,7 +44,7 @@ BitYield provides:
                  │
                  ▼
 ┌─────────────────────────────────────────────────────────┐
-│           BitYield Core (Cairo 2.8.2 Contracts)         │
+│           BitYield Core (Cairo 2.12.0 Contracts)        │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │         BitYieldVault.cairo (ERC-4626)           │  │
 │  │  • Deposit/Withdraw with share calculations      │  │
@@ -73,6 +75,22 @@ BitYield provides:
 │  └──────────┘  └──────────┘  └──────────────────────┘  │
 └─────────────────────────────────────────────────────────┘
 ```
+
+</div>
+
+---
+
+---
+
+## 📍 Deployed Contracts (Sepolia Testnet)
+
+| Contract | Address | Starkscan |
+|----------|---------|-----------|
+| **BitYieldVault** | `0x06552bc669d3a53c7223ae7d0d5f47613f5da4fb318f21e5f596cc8a791a3f90` | [View](https://sepolia.starkscan.co/contract/0x06552bc669d3a53c7223ae7d0d5f47613f5da4fb318f21e5f596cc8a791a3f90) |
+| **VesuAdapter** | `0x0096b181aba9febca459591efdf27b885b3f8096b42f5f1f805fbd9bee65b75b` | [View](https://sepolia.starkscan.co/contract/0x0096b181aba9febca459591efdf27b885b3f8096b42f5f1f805fbd9bee65b75b) |
+| **TrovesAdapter** | `0x0722c6917ff0ac4e298bfdeb409001d3bac6df3b72f338d63d075a6f614a4910` | [View](https://sepolia.starkscan.co/contract/0x0722c6917ff0ac4e298bfdeb409001d3bac6df3b72f338d63d075a6f614a4910) |
+| **StrategyManager** | `0x06154fad2a07742aed27af28c80c1259377bdffd1ffabee5aca9b1b7690b6a57` | [View](https://sepolia.starkscan.co/contract/0x06154fad2a07742aed27af28c80c1259377bdffd1ffabee5aca9b1b7690b6a57) |
+| **AtomiqBridge** | `0x030cb9c97a7bb3f4e160382ce233ffdbc623b65776ce2e08ee9806e7f9d808ff` | [View](https://sepolia.starkscan.co/contract/0x030cb9c97a7bb3f4e160382ce233ffdbc623b65776ce2e08ee9806e7f9d808ff) |
 
 ---
 
@@ -127,13 +145,21 @@ Manages deposits/withdrawals to Vesu lending pools.
 - `get_total_assets() -> u256`: Total deposited across pools
 - `get_pool_balance(pool_id: felt252) -> u256`: Balance in specific pool
 
-#### 3. **TrovesAdapter.cairo** *(To be implemented)*
+#### 3. **TrovesAdapter.cairo**
 Integration with Troves/Endurfi for liquid staking strategies.
 
-**Planned Features:**
+**Features:**
 - Liquid staking deposit/withdrawal
 - Reward claiming and compounding
 - Strategy optimization
+
+#### 4. **StrategyManager.cairo**
+Orchestrates yield optimization across protocols.
+
+**Features:**
+- APY calculation and optimization
+- Automated rebalancing with threshold triggers
+- Multi-protocol allocation management
 
 ---
 
@@ -175,310 +201,483 @@ Integration with Troves/Endurfi for liquid staking strategies.
 
 ---
 
-## 🚀 Installation & Setup
+## 🚀 Getting Started
 
 ### Prerequisites
-- **Scarb** (Cairo package manager): [Install Scarb](https://docs.swmansion.com/scarb/)
-- **Starknet Foundry** (Testing framework): [Install SNFoundry](https://foundry-rs.github.io/starknet-foundry/)
-- **Node.js** v18+ (for frontend integration)
 
-### Clone Repository
+This project is built using [**Scaffold-Stark 2**](https://github.com/Scaffold-Stark/scaffold-stark-2), a modern development stack for Starknet dApps.
+
+**System Requirements:**
+
+1. **Node.js** v18+ and **Yarn** package manager
+   ```bash
+   node --version  # Should be v18 or higher
+   yarn --version
+   ```
+
+2. **Starknet Development Tools** (managed via asdf):
+   - **Scarb** v2.12.0 (Cairo package manager)
+   - **Starknet Foundry** v0.49.0 (Testing framework)
+   - **Starknet Devnet** v0.4.3 (Local node)
+
+### Installation
+
+#### Step 1: Clone the Repository
+
 ```bash
-git clone https://github.com/your-repo/bityield-protocol
-cd bityield-protocol
+git clone https://github.com/CodeBlocker52/BitYield-Protocol
+cd BitYield-Protocol
 ```
 
-### Install Dependencies
+#### Step 2: Install asdf Version Manager (if not already installed)
+
+The project uses `asdf` to manage Starknet toolchain versions. This ensures everyone uses the same versions.
+
 ```bash
-scarb build
+# Install asdf
+git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
+
+# Add to shell profile (choose your shell)
+# For bash:
+echo '. "$HOME/.asdf/asdf.sh"' >> ~/.bashrc
+echo '. "$HOME/.asdf/completions/asdf.bash"' >> ~/.bashrc
+source ~/.bashrc
+
+# For zsh:
+echo '. "$HOME/.asdf/asdf.sh"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+#### Step 3: Install asdf Plugins
+
+```bash
+# Add Starknet toolchain plugins
+asdf plugin add scarb
+asdf plugin add starknet-foundry
+asdf plugin add starknet-devnet
+```
+
+#### Step 4: Install Project Dependencies
+
+```bash
+# Install Starknet toolchain versions (reads from .tool-versions)
+asdf install
+
+# Verify installations
+scarb --version          # Should show: scarb 2.12.0
+snforge --version        # Should show: snforge 0.49.0
+starknet-devnet --version # Should show: starknet-devnet 0.4.3
+
+# Install Node.js dependencies for frontend
+cd packages/nextjs
+yarn install
+
+# Install Node.js dependencies for contracts (if needed)
+cd ../snfoundry
+yarn install
 ```
 
 ---
 
-## 🧪 Testing
+## 🔨 Building & Testing Contracts
 
-### Run All Tests
+### Build Contracts
+
 ```bash
+cd packages/snfoundry/contracts
+scarb build
+```
+
+
+### Run Tests
+
+The project includes comprehensive test coverage (92 tests covering all contracts).
+
+```bash
+# From contracts directory
+cd packages/snfoundry/contracts
 snforge test
 ```
 
-### Run Specific Test
-```bash
-snforge test test_deposit
-```
 
-### Run with Detailed Output
+
+### Run Specific Tests
+
 ```bash
-snforge test -v
+# Test specific contract
+snforge test test_vault
+
+# Test with verbose output
+snforge test -vvv
+
+# Test with gas profiling
+snforge test --detailed-resources
 ```
 
 ### Test Coverage
+
 ```bash
 snforge test --coverage
 ```
 
-### Expected Tests
-- ✅ `test_deposit`: Verify WBTC deposit and byWBTC minting
-- ✅ `test_withdraw`: Verify share burning and WBTC withdrawal
-- ✅ `test_total_assets`: Check TVL calculation
-- ✅ `test_convert_shares_to_assets`: Test share price calculation
-- ✅ `test_deposit_zero_amount`: Ensure zero deposits fail
-- ✅ `test_withdraw_insufficient_shares`: Ensure insufficient balance fails
-- ✅ `test_pause_unpause`: Verify emergency pause functionality
+---
+
+## 🌐 Running the Frontend
+
+### Development Mode
+
+```bash
+cd packages/nextjs
+
+# Start development server
+yarn start
+```
+
+Visit `http://localhost:3000` to see the application.
+
+
+
+### Production Build
+
+```bash
+cd packages/nextjs
+
+# Build for production
+yarn build
+
+# Start production server
+yarn start
+```
+
+
 
 ---
 
-## 📡 Deployment
+## 🚢 Deploying Contracts
 
-### 1. Deploy on Testnet (Sepolia)
+### Deploy to Local Devnet
 
-#### Deploy Mock WBTC (for testing)
+**Terminal 1: Start Local Node**
 ```bash
-starkli declare target/dev/bityield_MockWBTC.contract_class.json --network sepolia
-
-starkli deploy \
-  <MOCK_WBTC_CLASS_HASH> \
-  <YOUR_ADDRESS> \
-  --network sepolia
+cd packages/snfoundry
+yarn chain
 ```
 
-#### Deploy VesuAdapter
+**Terminal 2: Deploy Contracts**
 ```bash
-starkli declare target/dev/bityield_VesuAdapter.contract_class.json --network sepolia
-
-starkli deploy \
-  <VESU_ADAPTER_CLASS_HASH> \
-  <OWNER_ADDRESS> \
-  <VAULT_ADDRESS> \
-  <WBTC_ADDRESS> \
-  --network sepolia
+cd packages/snfoundry
+yarn deploy --network devnet
 ```
 
-#### Deploy BitYieldVault
-```bash
-starkli declare target/dev/bityield_BitYieldVault.contract_class.json --network sepolia
+### Deploy to Sepolia Testnet
 
-starkli deploy \
-  <VAULT_CLASS_HASH> \
-  <OWNER_ADDRESS> \
-  <WBTC_ADDRESS> \
-  <STRATEGY_MANAGER_ADDRESS> \
-  <VESU_ADAPTER_ADDRESS> \
-  <TROVES_ADAPTER_ADDRESS> \
-  <FEE_RECIPIENT_ADDRESS> \
-  --network sepolia
+```bash
+cd packages/snfoundry
+yarn deploy --network sepolia
 ```
 
-### 2. Configure Adapters
+**Deployment Process:**
+1. Deploys VesuAdapter
+2. Deploys TrovesAdapter
+3. Deploys StrategyManager
+4. Deploys BitYieldVault
+5. Deploys AtomiqBridge
+6. Configures all contract addresses
+7. Outputs contract addresses to console
 
-#### Add Vesu Pools
+**Save the Contract Addresses:**
+After deployment, update `packages/nextjs/contracts/deployedContracts.ts` with the new addresses.
+
+### Deploy to Mainnet
+
 ```bash
+cd packages/snfoundry
+yarn deploy --network mainnet
+```
+
+
+
+
+## 🔧 Development Workflow
+
+### Making Changes
+
+1. **Edit Contracts**
+   ```bash
+   # Contracts are in packages/snfoundry/contracts/src/
+   nano packages/snfoundry/contracts/src/vault.cairo
+   ```
+
+2. **Rebuild**
+   ```bash
+   cd packages/snfoundry/contracts
+   scarb build
+   ```
+
+3. **Run Tests**
+   ```bash
+   snforge test
+   ```
+
+4. **Update Frontend** (if ABI changed)
+   ```bash
+   cd packages/nextjs
+   yarn contracts:sync
+   ```
+
+5. **Test Frontend**
+   ```bash
+   yarn dev
+   ```
+
+### Common Commands
+
+```bash
+# Contracts
+scarb build              # Build contracts
+snforge test            # Run all tests
+snforge test -vvv       # Verbose test output
+scarb clean             # Clean build artifacts
+
+# Frontend
+yarn dev                # Start dev server
+yarn build              # Build for production
+yarn start              # Start production server
+yarn lint               # Run linter
+yarn format             # Format code
+
+# Full Stack
+yarn chain              # Start local devnet
+yarn deploy             # Deploy contracts
+yarn contracts:sync     # Sync ABIs to frontend
+```
+
+---
+
+## 📡 Interacting with Deployed Contracts
+
+### Using the Frontend
+
+1. **Navigate to Yield Dashboard** (`http://localhost:3000/yield`)
+2. **Connect Wallet** (Argent X, Braavos, or Xverse)
+3. **Approve WBTC** for vault spending
+4. **Deposit WBTC** to receive byWBTC shares
+5. **Monitor Yield** and rebalancing events
+6. **Withdraw** by burning byWBTC shares
+
+### Using Starkli CLI
+
+#### Read Total Assets
+```bash
+starkli call \
+  0x06552bc669d3a53c7223ae7d0d5f47613f5da4fb318f21e5f596cc8a791a3f90 \
+  total_assets \
+  --rpc https://starknet-sepolia.public.blastapi.io/rpc/v0_9
+```
+
+#### Deposit WBTC
+```bash
+# 1. Approve WBTC
 starkli invoke \
-  <VESU_ADAPTER_ADDRESS> \
-  add_pool \
-  <POOL_ID> \
-  <V_TOKEN_ADDRESS> \
-  --network sepolia
+  <WBTC_TOKEN_ADDRESS> \
+  approve \
+  0x06552bc669d3a53c7223ae7d0d5f47613f5da4fb318f21e5f596cc8a791a3f90 \
+  u256:1000000 \
+  --rpc https://starknet-sepolia.public.blastapi.io/rpc/v0_9
+
+# 2. Deposit to vault
+starkli invoke \
+  0x06552bc669d3a53c7223ae7d0d5f47613f5da4fb318f21e5f596cc8a791a3f90 \
+  deposit \
+  u256:1000000 \
+  --rpc https://starknet-sepolia.public.blastapi.io/rpc/v0_9
 ```
 
-### 3. Mainnet Deployment
-Replace `--network sepolia` with `--network mainnet` and use production addresses.
+### Using Starkscan UI
+
+Visit contract pages for UI-based interaction:
+- [BitYieldVault on Starkscan](https://sepolia.starkscan.co/contract/0x06552bc669d3a53c7223ae7d0d5f47613f5da4fb318f21e5f596cc8a791a3f90)
 
 ---
 
-## 🔗 Frontend Integration Guide
+## 🧪 Test Results
 
-### Install Dependencies
-```bash
-npm install starknet @starknet-react/core get-starknet-core
-```
+**Current Test Coverage: 92 Tests - All Passing ✅**
 
-### Connect to Starknet
-```typescript
-import { connect, disconnect } from 'get-starknet-core';
-import { Contract, Provider } from 'starknet';
+### Test Breakdown
 
-// Connect wallet
-const connectWallet = async () => {
-  const starknet = await connect();
-  if (!starknet) throw new Error('Wallet not found');
-  await starknet.enable();
-  return starknet;
-};
-```
+- **Vault Tests (16)**: Deposit, withdraw, pause, fees, multi-user scenarios
+- **VesuAdapter Tests (24)**: Pool management, deposits, withdrawals, balances
+- **TrovesAdapter Tests (24)**: Strategy management, deposits, withdrawals, rewards
+- **StrategyManager Tests (28)**: Rebalancing, yield calculation, authorization
 
-### Deposit WBTC
-```typescript
-import BitYieldVaultABI from './abis/BitYieldVault.json';
-import ERC20ABI from './abis/ERC20.json';
+### Key Test Scenarios
 
-const depositWBTC = async (
-  vaultAddress: string,
-  wbtcAddress: string,
-  amount: string,
-  account: any
-) => {
-  // 1. Approve WBTC
-  const wbtcContract = new Contract(ERC20ABI, wbtcAddress, account);
-  const approveTx = await wbtcContract.approve(vaultAddress, amount);
-  await account.waitForTransaction(approveTx.transaction_hash);
+✅ **Deposit Flow**
+- Zero amount rejection
+- First deposit share calculation
+- Multiple user deposits
+- Share price consistency
 
-  // 2. Deposit to vault
-  const vaultContract = new Contract(BitYieldVaultABI, vaultAddress, account);
-  const depositTx = await vaultContract.deposit(amount);
-  await account.waitForTransaction(depositTx.transaction_hash);
-  
-  console.log('Deposit successful!', depositTx.transaction_hash);
-};
-```
+✅ **Withdrawal Flow**
+- Partial withdrawals
+- Full withdrawals
+- Insufficient shares protection
 
-### Withdraw WBTC
-```typescript
-const withdrawWBTC = async (
-  vaultAddress: string,
-  shares: string,
-  account: any
-) => {
-  const vaultContract = new Contract(BitYieldVaultABI, vaultAddress, account);
-  const withdrawTx = await vaultContract.withdraw(shares);
-  await account.waitForTransaction(withdrawTx.transaction_hash);
-  
-  console.log('Withdrawal successful!', withdrawTx.transaction_hash);
-};
-```
+✅ **Rebalancing**
+- Owner-only rebalancing
+- Authorized rebalancer access
+- Time-based rebalancing constraints
+- Allocation optimization
 
-### Get User Balance
-```typescript
-const getUserBalance = async (
-  vaultAddress: string,
-  userAddress: string,
-  provider: Provider
-) => {
-  const vaultContract = new Contract(
-    BitYieldVaultABI,
-    vaultAddress,
-    provider
-  );
-  
-  const shares = await vaultContract.balanceOf(userAddress);
-  const assets = await vaultContract.convertToAssets(shares);
-  
-  return {
-    shares: shares.toString(),
-    assets: assets.toString(),
-  };
-};
-```
-
-### Get Vault TVL
-```typescript
-const getVaultTVL = async (
-  vaultAddress: string,
-  provider: Provider
-) => {
-  const vaultContract = new Contract(
-    BitYieldVaultABI,
-    vaultAddress,
-    provider
-  );
-  
-  const totalAssets = await vaultContract.total_assets();
-  return totalAssets.toString();
-};
-```
-
-### Example React Component
-```typescript
-import { useAccount, useContract } from '@starknet-react/core';
-import { useState, useEffect } from 'react';
-
-function BitYieldDashboard() {
-  const { account, address } = useAccount();
-  const [tvl, setTvl] = useState('0');
-  const [userShares, setUserShares] = useState('0');
-
-  const { contract: vaultContract } = useContract({
-    abi: BitYieldVaultABI,
-    address: VAULT_ADDRESS,
-  });
-
-  useEffect(() => {
-    if (vaultContract) {
-      loadData();
-    }
-  }, [vaultContract, address]);
-
-  const loadData = async () => {
-    const totalAssets = await vaultContract.total_assets();
-    setTvl(totalAssets.toString());
-
-    if (address) {
-      const balance = await vaultContract.balanceOf(address);
-      setUserShares(balance.toString());
-    }
-  };
-
-  const handleDeposit = async (amount: string) => {
-    if (!account) return;
-    await depositWBTC(VAULT_ADDRESS, WBTC_ADDRESS, amount, account);
-    await loadData();
-  };
-
-  return (
-    <div>
-      <h2>BitYield Protocol</h2>
-      <p>Total Value Locked: {tvl} WBTC</p>
-      <p>Your Shares: {userShares} byWBTC</p>
-      <button onClick={() => handleDeposit('1000000')}>
-        Deposit 0.01 WBTC
-      </button>
-    </div>
-  );
-}
-```
+✅ **Security**
+- Unauthorized access prevention
+- Zero address validation
+- Pause mechanism
+- Emergency withdrawals
 
 ---
 
 ## 🔐 Security Considerations
 
 ### Implemented
+
 - ✅ **Reentrancy Guards**: Prevent reentrancy attacks
 - ✅ **Pausable**: Emergency stop mechanism
 - ✅ **Ownable**: Access control for admin functions
 - ✅ **Input Validation**: Zero amount checks, address validation
 - ✅ **Safe Math**: Cairo 2.0 overflow protection
+- ✅ **Role-Based Access**: Separate owner and rebalancer roles
 
-### Recommended Audits
-- [ ] Smart contract audit by reputable firm
-- [ ] Economic model review
-- [ ] Integration testing with live protocols
+
 
 ---
 
-## 📊 Key Metrics & Monitoring
+## 📊 Monitoring & Metrics
 
 ### On-Chain Metrics
-- **TVL (Total Value Locked)**: `vault.total_assets()`
-- **User Deposits**: `vault.balanceOf(user)`
-- **Fee Collection**: Monitor `FeeCollected` events
-- **Rebalancing Events**: Track `Rebalance` events
 
-### Performance Metrics
-- **APY (Annual Percentage Yield)**: Calculate from yield deltas
-- **Sharpe Ratio**: Risk-adjusted returns
-- **Allocation Breakdown**: % in Vesu vs Troves
+Monitor these key metrics through the frontend dashboard:
+
+- **TVL (Total Value Locked)**: Total WBTC deposited in vault
+- **APY**: Current annual percentage yield (weighted average)
+- **Allocation**: % distribution between Vesu and Troves
+- **User Balance**: Your byWBTC shares and WBTC value
+- **Fee Collection**: Performance and management fees accrued
+
+### Events to Monitor
+
+```cairo
+Deposit(user, assets, shares)
+Withdraw(user, assets, shares)
+Rebalance(vesu_bps, troves_bps)
+FeeCollected(amount, recipient)
+StrategyUpdated(strategy_id, new_target)
+```
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please follow these steps:
+We welcome contributions! Here's how to get started:
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+### Development Setup
+
+```bash
+# 1. Fork and clone
+git clone https://github.com/CodeBlocker52/BitYield-Protocol
+cd BitYield-Protocol
+
+# 2. Install dependencies
+asdf install
+cd packages/nextjs && yarn install
+
+# 3. Create feature branch
+git checkout -b feature/amazing-feature
+
+# 4. Make changes and test
+cd packages/snfoundry/contracts
+scarb build
+snforge test
+
+# 5. Test frontend
+cd ../../nextjs
+yarn dev
+
+# 6. Commit and push
+git add .
+git commit -m 'Add amazing feature'
+git push origin feature/amazing-feature
+
+# 7. Open Pull Request
+```
+
+### Coding Standards
+
+- **Cairo**: Follow official Cairo style guide
+- **TypeScript**: Use ESLint and Prettier configurations
+- **Testing**: Add tests for new features
+- **Documentation**: Update README and inline comments
+
+---
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Issue: "No version is set for command scarb"**
+```bash
+# Solution: Install asdf and project tools
+asdf install
+```
+
+**Issue: "Module not found" in frontend**
+```bash
+# Solution: Reinstall dependencies
+cd packages/nextjs
+rm -rf node_modules yarn.lock
+yarn install
+```
+
+**Issue: Tests failing after contract changes**
+```bash
+# Solution: Rebuild contracts
+cd packages/snfoundry/contracts
+scarb clean
+scarb build
+snforge test
+```
+
+**Issue: Frontend can't connect to contracts**
+```bash
+# Solution: Sync ABIs
+cd packages/nextjs
+yarn contracts:sync
+```
+
+---
+
+## 📝 Project Structure
+
+```
+BitYield-Protocol/
+├── packages/
+│   ├── nextjs/              # Frontend application
+│   │   ├── app/             # Next.js app router pages
+│   │   ├── components/      # React components
+│   │   ├── contracts/       # Contract ABIs and addresses
+│   │   └── public/          # Static assets
+│   │
+│   └── snfoundry/           # Smart contracts
+│       ├── contracts/       # Cairo contracts
+│       │   ├── src/         # Contract source code
+│       │   └── tests/       # Contract tests
+│       └── scripts-ts/      # Deployment scripts
+│
+├── .tool-versions           # asdf version specifications
+├── package.json             # Root package config
+└── README.md               # This file
+```
 
 ---
 
@@ -488,35 +687,43 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ---
 
-## 🔗 Links
+## 🔗 Resources && Links
 
 - **Starknet**: [starknet.io](https://starknet.io)
+- **Scaffold-Stark 2**: [github.com/Scaffold-Stark/scaffold-stark-2](https://github.com/Scaffold-Stark/scaffold-stark-2)
 - **Vesu Protocol**: [vesu.xyz](https://vesu.xyz)
-- **Atomiq**: [atomiq.io](https://atomiq.io)
-- **Xverse Wallet**: [xverse.app](https://xverse.app)
-- **Cairo Docs**: [cairo-book.github.io](https://cairo-book.github.io)
+- **Troves Protocol**: [troves.app](https://troves.app)
+- **Atomiq Bridge**: [atomiq.io](https://atomiq.io)
+- **Cairo Book**: [cairo-book.github.io](https://cairo-book.github.io)
+- **Starknet Foundry**: [foundry-rs.github.io/starknet-foundry](https://foundry-rs.github.io/starknet-foundry/)
 
 ---
 
 ## 🏆 Hackathon Submission
 
-**Starknet Res{solve} Hackathon**
+**Starknet Re{solve} Hackathon 2025**
 
 ### Innovation Highlights
+
 1. **First Bitcoin-native yield aggregator** on Starknet
 2. **Seamless UX** - No manual bridging/wrapping for users
 3. **Automated optimization** via Cairo smart contracts
 4. **Multi-protocol integration** (Vesu, Troves, Atomiq)
 5. **ERC4626 compliance** for composability
+6. **Comprehensive test coverage** (92 tests - 100% passing)
 
 ### Future Roadmap
-- [ ] Integrate Troves/Endurfi strategies
-- [ ] Add more Vesu pools
-- [ ] Implement auto-compounding
-- [ ] Advanced rebalancing algorithms (APY optimization)
-- [ ] Governance token for protocol decisions
-- [ ] Cross-chain yield opportunities
+
+-  Integrate additional Troves strategies
+-  Add more Vesu lending pools
+-  Implement auto-compounding
+-  Advanced rebalancing algorithms (ML-based APY prediction)
+-  Governance token for protocol decisions
+-  Cross-chain yield opportunities (Bitcoin L2s)
+-  Mobile app integration (iOS/Android)
+-  Security audit and mainnet launch
 
 ---
 
-**Built with ❤️ for the Starknet Re{Solve} Hackathon 2025**
+**Built with ❤️ on Starknet using Scaffold-Stark 2**
+
