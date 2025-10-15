@@ -1,26 +1,24 @@
-// components/agent/TransactionLink.tsx
-import React from "react";
+import React, { useState } from "react";
 import { ExternalLink, Copy, CheckCircle } from "lucide-react";
-import { useState } from "react";
-import { getHashScanUrl } from "../../utils/tokenConfig";
+import { getStarkscanUrl, StarknetNetwork } from "../../utils/tokenConfig";
 
 interface TransactionLinkProps {
   txHash: string;
-  network?: 'mainnet' | 'testnet';
+  network?: StarknetNetwork;
   className?: string;
   showCopyButton?: boolean;
 }
 
 export const TransactionLink: React.FC<TransactionLinkProps> = ({
   txHash,
-  network = 'testnet',
+  network = 'sepolia',
   className = "",
   showCopyButton = true
 }) => {
   const [copied, setCopied] = useState(false);
   
-  const hashscanUrl = getHashScanUrl(network);
-  const fullUrl = `${hashscanUrl}/transaction/${txHash}`;
+  const starkscanUrl = getStarkscanUrl(network);
+  const fullUrl = `${starkscanUrl}/tx/${txHash}`;
   const shortHash = `${txHash.slice(0, 8)}...${txHash.slice(-6)}`;
   
   const copyToClipboard = async () => {
@@ -34,14 +32,14 @@ export const TransactionLink: React.FC<TransactionLinkProps> = ({
   };
 
   return (
-    <div className={`inline-flex items-center space-x-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 ${className}`}>
-      <div className="flex items-center space-x-2">
-        <CheckCircle className="h-4 w-4 text-green-600" />
+    <div className={`inline-flex items-center gap-2 bg-success/10 border border-success/30 rounded-lg px-3 py-2 ${className}`}>
+      <div className="flex items-center gap-2">
+        <CheckCircle className="h-4 w-4 text-success" />
         <a
           href={fullUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-green-700 hover:text-green-800 font-medium text-sm flex items-center space-x-1 hover:underline"
+          className="text-success hover:text-success/80 font-medium text-sm flex items-center gap-1 hover:underline"
         >
           <span>{shortHash}</span>
           <ExternalLink className="h-3 w-3" />
@@ -51,7 +49,7 @@ export const TransactionLink: React.FC<TransactionLinkProps> = ({
       {showCopyButton && (
         <button
           onClick={copyToClipboard}
-          className="text-green-600 hover:text-green-800 p-1 rounded transition-colors"
+          className="text-success hover:text-success/80 p-1 rounded transition-colors"
           title="Copy transaction hash"
         >
           {copied ? (

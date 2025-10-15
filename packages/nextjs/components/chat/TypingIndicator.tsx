@@ -1,6 +1,6 @@
-// components/chat/TypingIndicator.tsx
-import Image from "next/image";
 import React from "react";
+import { Bot } from "lucide-react";
+import Image from "next/image";
 
 interface TypingIndicatorProps {
   isVisible: boolean;
@@ -12,33 +12,33 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({
   if (!isVisible) return null;
 
   return (
-    <div className="flex justify-start">
-      <div className="flex items-start space-x-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
-          <Image
-            src="/BitYieldLogo.png"
-            alt="BitYield Logo"
-            width={70}
-            height={70}
-          />
-        </div>
-        <div className="glass p-4 rounded-2xl border border-border/30">
-          <div className="flex items-center space-x-2">
-            <div className="flex space-x-1">
-              <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
-              <div
-                className="w-2 h-2 bg-primary rounded-full animate-bounce"
-                style={{ animationDelay: "0.1s" }}
-              ></div>
-              <div
-                className="w-2 h-2 bg-primary rounded-full animate-bounce"
-                style={{ animationDelay: "0.2s" }}
-              ></div>
-            </div>
-            <span className="text-sm text-muted-foreground">
-              AI is thinking...
-            </span>
+    <div className="flex items-start gap-3 mb-6">
+      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-orange-500 to-purple-600">
+        <Image
+          src="/BitYieldLogo.png"
+          alt="BitYield Logo"
+          className="rounded-xl"
+          width={40}
+          height={40}
+        />
+      </div>
+      <div className="bg-slate-900/50 border border-slate-800 p-4 rounded-2xl">
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            <div
+              className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+              style={{ animationDelay: "0ms" }}
+            />
+            <div
+              className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+              style={{ animationDelay: "150ms" }}
+            />
+            <div
+              className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+              style={{ animationDelay: "300ms" }}
+            />
           </div>
+          <span className="text-sm text-slate-400">AI is thinking...</span>
         </div>
       </div>
     </div>

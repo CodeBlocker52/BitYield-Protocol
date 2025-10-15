@@ -1,46 +1,52 @@
-// config/tokenConfig.ts
 
 export interface TokenInfo {
   symbol: string;
   name: string;
   icon: string;
   decimals: number;
-  tokenId?: string;
+  address?: string;
   color: string;
 }
 
-export const HEDERA_TOKENS: Record<string, TokenInfo> = {
-  HBAR: {
-    symbol: 'HBAR',
-    name: 'Hedera Hashgraph',
-    icon: 'https://cryptologos.cc/logos/hedera-hbar-logo.png',
+export const STARKNET_TOKENS: Record<string, TokenInfo> = {
+  BTC: {
+    symbol: 'BTC',
+    name: 'Bitcoin',
+    icon: '/bitcoin-btc-logo.svg',
     decimals: 8,
-    tokenId: '0.0.0',
-    color: '#4F46E5'
+    color: '#F7931A'
+  },
+  WBTC: {
+    symbol: 'WBTC',
+    name: 'Wrapped Bitcoin',
+    icon: '/wrapped-bitcoin-wbtc-logo.svg',
+    decimals: 8,
+    address: '0x03fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac',
+    color: '#F09242'
+  },
+  STRK: {
+    symbol: 'STRK',
+    name: 'Starknet Token',
+    icon: '/starknetLogo.png',
+    decimals: 18,
+    address: '0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d',
+    color: '#8B45FD'
   },
   USDC: {
     symbol: 'USDC',
     name: 'USD Coin',
-    icon: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
+    icon: '/usd-coin-usdc-logo.svg',
     decimals: 6,
-    tokenId: '0.0.456858',
+    address: '0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8',
     color: '#2775CA'
   },
-  SAUCE: {
-    symbol: 'SAUCE',
-    name: 'SaucerSwap Token',
-    icon: 'https://saucerswap.finance/tokens/sauce.svg',
-    decimals: 6,
-    tokenId: '0.0.731861',
-    color: '#8B5CF6'
-  },
-  WHBAR: {
-    symbol: 'WHBAR',
-    name: 'Wrapped HBAR',
-    icon: 'https://cryptologos.cc/logos/hedera-hbar-logo.png',
-    decimals: 8,
-    tokenId: '0.0.1456986',
-    color: '#6366F1'
+  ETH: {
+    symbol: 'ETH',
+    name: 'Ethereum',
+    icon: '/ethereum-eth-logo.svg',
+    decimals: 18,
+    address: '0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7',
+    color: '#627EEA'
   }
 };
 
@@ -48,29 +54,36 @@ export const HEDERA_TOKENS: Record<string, TokenInfo> = {
 export const UNKNOWN_TOKEN: TokenInfo = {
   symbol: '?',
   name: 'Unknown Token',
-  icon: 'https://via.placeholder.com/24/6B7280/FFFFFF?text=?',
-  decimals: 8,
+  icon: '/logo.svg',
+  decimals: 18,
   color: '#6B7280'
 };
 
 export const getTokenInfo = (symbol: string): TokenInfo => {
-  return HEDERA_TOKENS[symbol.toUpperCase()] || UNKNOWN_TOKEN;
+  return STARKNET_TOKENS[symbol.toUpperCase()] || UNKNOWN_TOKEN;
 };
 
-// Network configurations for HashScan links
-export const HEDERA_NETWORKS = {
+// Network configurations for Starkscan links
+export const STARKNET_NETWORKS = {
   mainnet: {
     name: 'Mainnet',
-    hashscanUrl: 'https://hashscan.io',
-    chainId: '295'
+    starkscanUrl: 'https://starkscan.co',
+    chainId: 'SN_MAIN'
   },
-  testnet: {
-    name: 'Testnet', 
-    hashscanUrl: 'https://hashscan.io/testnet',
-    chainId: '296'
+  sepolia: {
+    name: 'Sepolia',
+    starkscanUrl: 'https://sepolia.starkscan.co',
+    chainId: 'SN_SEPOLIA'
   },
+  devnet: {
+    name: 'Devnet',
+    starkscanUrl: 'http://localhost:5050',
+    chainId: 'SN_DEVNET'
+  }
 };
 
-export const getHashScanUrl = (network: keyof typeof HEDERA_NETWORKS = 'testnet') => {
-  return HEDERA_NETWORKS[network].hashscanUrl;
+export type StarknetNetwork = keyof typeof STARKNET_NETWORKS;
+
+export const getStarkscanUrl = (network: StarknetNetwork = 'sepolia') => {
+  return STARKNET_NETWORKS[network].starkscanUrl;
 };

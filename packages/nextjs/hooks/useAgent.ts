@@ -1,6 +1,9 @@
-// hooks/useAgent.ts
 import { useState, useEffect, useCallback } from "react";
-import { agentService } from "../services/agentService";
+import {
+  agentService,
+  AgentResponse,
+  AgentEvent,
+} from "../services/agentService";
 
 export interface AgentStatus {
   isConnected: boolean;
@@ -11,10 +14,15 @@ export interface AgentStatus {
 
 export interface AgentMessage {
   id: string;
-  type: "user" | "agent" | "system";
+  type: "user" | "bot" | "system" | "event";
   content: string;
   timestamp: Date;
-  status?: "pending" | "delivered" | "error";
+  metadata?: any;
+  suggestions?: Array<{
+    text: string;
+    action: string;
+    type: "info" | "success" | "warning";
+  }>;
 }
 
 export const useAgent = () => {
@@ -30,44 +38,56 @@ export const useAgent = () => {
     () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   );
 
+  // Add system message
+  const addSystemMessage = useCallback(
+    (content: string, type: "system" | "event" = "system") => {
+      const systemMessage: AgentMessage = {
+        id: `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type,
+        content,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, systemMessage]);
+    },
+    []
+  );
+
   // Initialize connection
   const connect = useCallback(async () => {
     try {
       setStatus((prev) => ({ ...prev, error: null }));
 
-      // Check server health first
+      // Check health first
       const isHealthy = await agentService.checkHealth();
       if (!isHealthy) {
-        throw new Error("BitYield AI server is not ready");
+        throw new Error("BitYield Agent service is not available");
       }
 
-      // Establish WebSocket connection
+      // Connect Socket.IO
       await agentService.connect();
 
-      setStatus((prev) => ({
-        ...prev,
+      setStatus({
         isConnected: true,
         isHealthy: true,
+        isProcessing: false,
         error: null,
-      }));
+      });
 
-      // Add welcome message from agent
-      addSystemMessage(
-        "Connected to BitYield AI Agent. Ready to assist with your DeFi operations!"
-      );
+      addSystemMessage("✅ Connected to BitYield AI Agent");
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Connection failed";
-      setStatus((prev) => ({
-        ...prev,
+      setStatus({
         isConnected: false,
         isHealthy: false,
+        isProcessing: false,
         error: errorMessage,
-      }));
+      });
 
-      addSystemMessage(`Connection failed: ${errorMessage}`, "error");
+      addSystemMessage(`❌ Connection failed: ${errorMessage}`);
     }
-  }, []);
+  }, [addSystemMessage]);
 
   // Send message to agent
   const sendMessage = useCallback(
@@ -79,58 +99,39 @@ export const useAgent = () => {
         type: "user",
         content: content.trim(),
         timestamp: new Date(),
-        status: "pending",
       };
 
       setMessages((prev) => [...prev, userMessage]);
       setStatus((prev) => ({ ...prev, isProcessing: true, error: null }));
 
       try {
-        // Try WebSocket first, fallback to HTTP
-        let response;
+        let response: AgentResponse;
+
+        // Try Socket.IO first, fallback to HTTP
         if (agentService.isConnected) {
-          response = await agentService.sendMessage(content, sessionId);
+          response = await agentService.sendMessage(content);
         } else {
           response = await agentService.sendMessageHTTP(content);
         }
 
-        // Update user message status
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === userMessage.id
-              ? { ...msg, status: "delivered" as const }
-              : msg
-          )
-        );
-
         // Add agent response
-        const agentMessage: AgentMessage = {
-          id: `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          type: "agent",
+        const botMessage: AgentMessage = {
+          id: `bot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: "bot",
           content: response.message,
           timestamp: new Date(response.timestamp),
-          status: "delivered",
+          metadata: response.metadata,
+          suggestions: response.metadata?.data || [],
         };
 
-        setMessages((prev) => [...prev, agentMessage]);
-
+        setMessages((prev) => [...prev, botMessage]);
         setStatus((prev) => ({ ...prev, isProcessing: false }));
         return true;
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to send message";
 
-        // Update user message status
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === userMessage.id
-              ? { ...msg, status: "error" as const }
-              : msg
-          )
-        );
-
-        // Add error message
-        addSystemMessage(`Error: ${errorMessage}`, "error");
+        addSystemMessage(`❌ Error: ${errorMessage}`);
 
         setStatus((prev) => ({
           ...prev,
@@ -141,26 +142,10 @@ export const useAgent = () => {
         return false;
       }
     },
-    [sessionId]
+    [addSystemMessage]
   );
 
-  // Add system messages
-  const addSystemMessage = useCallback(
-    (content: string, type: "info" | "error" = "info") => {
-      const systemMessage: AgentMessage = {
-        id: `system_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        type: "system",
-        content,
-        timestamp: new Date(),
-        status: "delivered",
-      };
-
-      setMessages((prev) => [...prev, systemMessage]);
-    },
-    []
-  );
-
-  // Clear conversation
+  // Clear messages
   const clearMessages = useCallback(() => {
     setMessages([]);
   }, []);
@@ -186,20 +171,56 @@ export const useAgent = () => {
     };
   }, [connect, disconnect]);
 
-  // Listen for agent status updates
+  // Listen for agent events
   useEffect(() => {
-    const handleStatus = (statusUpdate: any) => {
-      if (statusUpdate.type === "thinking") {
-        setStatus((prev) => ({ ...prev, isProcessing: true }));
+    const handleEvent = (event: AgentEvent) => {
+      switch (event.type) {
+        case "loading":
+          addSystemMessage(`⏳ ${event.message}`, "event");
+          setStatus((prev) => ({ ...prev, isProcessing: true }));
+          break;
+
+        case "success":
+          addSystemMessage(`✅ ${event.message}`, "event");
+          break;
+
+        case "error":
+          addSystemMessage(`❌ ${event.message}`, "event");
+          break;
+
+        case "info":
+          addSystemMessage(`ℹ️ ${event.message}`, "event");
+          break;
+
+        case "progress":
+          addSystemMessage(
+            `📊 Step ${event.step}/${event.total}: ${event.message}`,
+            "event"
+          );
+          break;
+
+        case "transaction":
+          const txMessage: AgentMessage = {
+            id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type: "bot", // treat as a bot message
+            content: `📝 ${event.description}\n🔗 TX: ${event.txHash}`,
+            timestamp: new Date(),
+            metadata: {
+              txHash: event.txHash,
+              network: "sepolia",
+            },
+          };
+          setMessages((prev) => [...prev, txMessage]);
+          break;
       }
     };
 
-    agentService.onStatus(handleStatus);
+    agentService.onEvent(handleEvent);
 
     return () => {
-      agentService.offStatus(handleStatus);
+      agentService.offEvent(handleEvent);
     };
-  }, []);
+  }, [addSystemMessage]);
 
   return {
     // Status
