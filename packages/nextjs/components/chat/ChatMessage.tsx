@@ -37,13 +37,13 @@ const formatMessage = (
 ): React.ReactNode => {
   const lines = content.split("\n");
   const txPattern = /(0x[a-fA-F0-9]{6,66})/g;
-  const tokenPattern = /(\d+\.?\d*)\s+(BTC|WBTC|STRK|USDC|ETH)/gi;
+  const tokenPattern =
+    /\b(BTC|WBTC|STRK|USDC|ETH)\s*:\s*(\d+\.?\d*)|\b(\d+\.?\d*)\s+(BTC|WBTC|STRK|USDC|ETH)\b/gi;
   const boldPattern = /\*\*(.*?)\*\*/g;
 
   return lines.map((line, index) => {
     if (!line.trim()) return <br key={index} />;
 
-    // split line by tx hashes, keeping matches
     const segments: React.ReactNode[] = [];
     let last = 0;
     let m;
@@ -63,31 +63,36 @@ const formatMessage = (
     }
     if (last < line.length) segments.push(line.slice(last));
 
-    // for each segment that's a string, run token + bold parsing
     const rendered = segments.map((seg, i) => {
       if (typeof seg !== "string") return <span key={`seg-${i}`}>{seg}</span>;
 
-      // token parsing
       const tokenParts: React.ReactNode[] = [];
       let li = 0;
       tokenPattern.lastIndex = 0;
       let t;
+
       while ((t = tokenPattern.exec(seg)) !== null) {
         if (t.index > li) tokenParts.push(seg.slice(li, t.index));
+
+        // handle both match patterns: `BTC: 10.5234` or `10.5234 BTC`
+        const symbol = t[1] || t[4];
+        const amount = t[2] || t[3];
+
         tokenParts.push(
           <TokenDisplay
             key={`token-${index}-${i}-${t.index}`}
-            symbol={t[2]}
-            amount={t[1]}
+            symbol={symbol}
+            amount={amount}
             size="sm"
             className="mx-1"
           />
         );
         li = t.index + t[0].length;
       }
+
       if (li < seg.length) tokenParts.push(seg.slice(li));
 
-      // if no token matches, handle bold
+      // Bold formatting (only if no tokens)
       if (tokenParts.length === 1 && typeof tokenParts[0] === "string") {
         const boldParts: React.ReactNode[] = [];
         let bi = 0;
@@ -96,7 +101,10 @@ const formatMessage = (
         while ((b = boldPattern.exec(seg)) !== null) {
           if (b.index > bi) boldParts.push(seg.slice(bi, b.index));
           boldParts.push(
-            <strong key={`bold-${index}-${i}-${b.index}`} className="font-bold text-orange-400">
+            <strong
+              key={`bold-${index}-${i}-${b.index}`}
+              className="font-bold text-orange-400"
+            >
               {b[1]}
             </strong>
           );
@@ -109,7 +117,7 @@ const formatMessage = (
       return <span key={`seg-${i}`}>{tokenParts}</span>;
     });
 
-    // handle bullets
+    // bullet points support
     if (line.trim().startsWith("•") || line.trim().startsWith("-")) {
       return (
         <div key={index} className="flex gap-2 ml-2">
@@ -119,7 +127,11 @@ const formatMessage = (
       );
     }
 
-    return <div key={index} className="flex">{rendered}</div>;
+    return (
+      <div key={index} className="flex items-center">
+        {rendered}
+      </div>
+    );
   });
 };
 

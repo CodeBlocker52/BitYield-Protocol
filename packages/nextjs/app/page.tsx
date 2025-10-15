@@ -136,7 +136,7 @@ export default function BitYieldLanding() {
                     toast.error("Please connect your wallet to continue.");
                   }
                 }}
-                className="px-8 py-4 bg-gradient-to-r from-orange-500 to-purple-600 rounded-xl font-semibold text-lg hover:shadow-2xl hover:shadow-purple-500/50 transition-all inline-flex items-center gap-2 group"
+                className="px-8 py-4 bg-gradient-to-r from-orange-500 to-purple-600 rounded-xl font-semibold text-lg hover:shadow-2xl hover:shadow-purple-500/50 transition-all inline-flex items-center gap-2 group cursor-pointer"
               >
                 <span className="flex items-center gap-2">
                   Start Earning
@@ -144,7 +144,7 @@ export default function BitYieldLanding() {
                 </span>
               </button>
               {isConnected && (
-                <button onClick={() => router.push("/vault")} className="w-full sm:w-auto px-8 py-4 border-2 border-purple-500/50 rounded-xl font-semibold text-lg hover:bg-purple-500/10 transition-all">
+                <button onClick={() => router.push("/vault")} className="w-full sm:w-auto px-8 py-4 border-2 border-purple-500/50 rounded-xl font-semibold text-lg hover:bg-purple-500/10 transition-all cursor-pointer">
                   Open Vault
                 </button>
               )}
@@ -298,7 +298,7 @@ export default function BitYieldLanding() {
                   toast.error("Please connect your wallet to continue.");
                 }
               }}
-              className="px-8 py-4 bg-gradient-to-r from-orange-500 to-purple-600 rounded-xl font-semibold text-lg hover:shadow-2xl hover:shadow-purple-500/50 transition-all inline-flex items-center gap-2 group"
+              className="px-8 py-4 bg-gradient-to-r from-orange-500 to-purple-600 rounded-xl font-semibold text-lg hover:shadow-2xl hover:shadow-purple-500/50 transition-all inline-flex items-center gap-2 group cursor-pointer"
             >
               <span className="flex items-center gap-2">
                 Launch App Now

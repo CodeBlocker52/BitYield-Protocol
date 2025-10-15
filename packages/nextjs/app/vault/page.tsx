@@ -24,8 +24,8 @@ const VAULT_DATA = {
     }
   ],
   allocations: [
-    { name: 'Vesu Lending', percentage: 30, apy: 5.3, amount: 3720000 },
-    { name: 'Troves Staking', percentage: 70, apy: 8.8, amount: 8680000 }
+    { name: 'Vesu Lending', percentage: 70, apy: 5.7, amount: 3720000 },
+    { name: 'Troves Staking', percentage: 30, apy: 16.8, amount: 8680000 }
   ]
 };
 

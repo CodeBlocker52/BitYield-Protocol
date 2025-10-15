@@ -102,7 +102,7 @@ export default function WalletConnectButton() {
       {/* Connect Button */}
       {!isConnected ? (
         <button
-          className="btn btn-primary gap-2"
+          className="btn btn-primary gap-2 cursor-pointer"
           onClick={() => setShowModal(true)}
         >
           <Wallet className="w-5 h-5" />

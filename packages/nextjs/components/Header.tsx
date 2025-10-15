@@ -147,7 +147,7 @@ export const Header = () => {
                   toast.error("Please connect your wallet to continue.");
                 }
               }}
-              className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-purple-600 rounded-lg font-semibold hover:shadow-lg hover:shadow-purple-500/50 transition-all"
+              className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-purple-600 rounded-lg font-semibold hover:shadow-lg hover:shadow-purple-500/50 transition-all cursor-pointer"
             >
               <span>Launch App</span>
             </button>
