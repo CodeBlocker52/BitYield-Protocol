@@ -19,17 +19,15 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import WalletConnectButton from "~~/components/wallet/WalletConnectButton";
+import { useAccount } from "@starknet-react/core";
+import { useRouter } from "next/navigation";
+import { Toaster, toast } from "react-hot-toast";
+import { Header } from "~~/components/Header";
 
 export default function BitYieldLanding() {
-  const [scrolled, setScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  const { isConnected } = useAccount();
+  const router = useRouter();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -104,102 +102,8 @@ export default function BitYieldLanding() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 text-white">
-      {/* Navigation */}
-      <nav
-        className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? "bg-slate-950/95 backdrop-blur-lg border-b border-purple-500/20" : ""}`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16 sm:h-20">
-            <div className="flex items-center gap-3">
-              <Image
-                src="/BitYieldLogo.png"
-                alt="BitYield Logo"
-                width={40}
-                height={40}
-                className="rounded-xl"
-              />
-              <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-orange-400 to-purple-400 bg-clip-text text-transparent">
-                BitYield
-              </span>
-            </div>
-
-            {/* Desktop Menu */}
-            <div className="hidden md:flex items-center gap-8">
-              <a
-                href="#features"
-                className="hover:text-purple-400 transition-colors"
-              >
-                Features
-              </a>
-              <a
-                href="#how-it-works"
-                className="hover:text-purple-400 transition-colors"
-              >
-                How It Works
-              </a>
-              <a
-                href="#protocols"
-                className="hover:text-purple-400 transition-colors"
-              >
-                Protocols
-              </a>
-              <a
-                href="https://github.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-purple-400 transition-colors"
-              >
-                <Github className="w-5 h-5" />
-              </a>
-              <button className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-purple-600 rounded-lg font-semibold hover:shadow-lg hover:shadow-purple-500/50 transition-all">
-                <a href="/yield">Launch App</a>
-              </button>
-              <WalletConnectButton />
-            </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              className="md:hidden p-2"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <Menu className="w-6 h-6" />
-              )}
-            </button>
-          </div>
-
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-purple-500/20">
-              <div className="flex flex-col gap-4">
-                <a
-                  href="#features"
-                  className="hover:text-purple-400 transition-colors"
-                >
-                  Features
-                </a>
-                <a
-                  href="#how-it-works"
-                  className="hover:text-purple-400 transition-colors"
-                >
-                  How It Works
-                </a>
-                <a
-                  href="#protocols"
-                  className="hover:text-purple-400 transition-colors"
-                >
-                  Protocols
-                </a>
-                <button className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-purple-600 rounded-lg font-semibold">
-                  <a href="/yield">Launch App</a>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </nav>
+      {/* Header */}
+      <Header />
 
       {/* Hero Section */}
       <section className="pt-32 sm:pt-40 pb-20 px-4 sm:px-6 lg:px-8">
@@ -224,15 +128,26 @@ export default function BitYieldLanding() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <button className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-orange-500 to-purple-600 rounded-xl font-semibold text-lg hover:shadow-2xl hover:shadow-purple-500/50 transition-all flex items-center justify-center gap-2 group">
-                <a href="/yield" className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (isConnected) {
+                    router.push("/yield");
+                  } else {
+                    toast.error("Please connect your wallet to continue.");
+                  }
+                }}
+                className="px-8 py-4 bg-gradient-to-r from-orange-500 to-purple-600 rounded-xl font-semibold text-lg hover:shadow-2xl hover:shadow-purple-500/50 transition-all inline-flex items-center gap-2 group"
+              >
+                <span className="flex items-center gap-2">
                   Start Earning
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </a>
+                </span>
               </button>
-              <button className="w-full sm:w-auto px-8 py-4 border-2 border-purple-500/50 rounded-xl font-semibold text-lg hover:bg-purple-500/10 transition-all">
-                View Docs
-              </button>
+              {isConnected && (
+                <button onClick={() => router.push("/vault")} className="w-full sm:w-auto px-8 py-4 border-2 border-purple-500/50 rounded-xl font-semibold text-lg hover:bg-purple-500/10 transition-all">
+                  Open Vault
+                </button>
+              )}
             </div>
 
             {/* Stats */}
@@ -375,11 +290,20 @@ export default function BitYieldLanding() {
               Join thousands of Bitcoin holders earning passive DeFi yields with
               AI-powered optimization
             </p>
-            <button className="px-8 py-4 bg-gradient-to-r from-orange-500 to-purple-600 rounded-xl font-semibold text-lg hover:shadow-2xl hover:shadow-purple-500/50 transition-all inline-flex items-center gap-2 group">
-              <a href="/yield" className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (isConnected) {
+                  router.push("/yield");
+                } else {
+                  toast.error("Please connect your wallet to continue.");
+                }
+              }}
+              className="px-8 py-4 bg-gradient-to-r from-orange-500 to-purple-600 rounded-xl font-semibold text-lg hover:shadow-2xl hover:shadow-purple-500/50 transition-all inline-flex items-center gap-2 group"
+            >
+              <span className="flex items-center gap-2">
                 Launch App Now
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </a>
+              </span>
             </button>
           </div>
         </div>

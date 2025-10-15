@@ -3,7 +3,7 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Bars3Icon, BugAntIcon } from "@heroicons/react/24/outline";
 import { useOutsideClick } from "~~/hooks/scaffold-stark";
 import { CustomConnectButton } from "~~/components/scaffold-stark/CustomConnectButton";
@@ -13,6 +13,9 @@ import { devnet } from "@starknet-react/chains";
 import { SwitchTheme } from "./SwitchTheme";
 import { useAccount, useNetwork, useProvider } from "@starknet-react/core";
 import { BlockIdentifier } from "starknet";
+import { Github, Menu, X } from "lucide-react";
+import { toast } from "react-hot-toast";
+import WalletConnectButton from "./wallet/WalletConnectButton";
 
 type HeaderMenuLink = {
   label: string;
@@ -69,117 +72,140 @@ export const HeaderMenuLinks = () => {
  * Site header
  */
 export const Header = () => {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const burgerMenuRef = useRef<HTMLDivElement>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeFeature, setActiveFeature] = useState(0);
+  const { isConnected } = useAccount();
 
-  useOutsideClick(
-    burgerMenuRef,
-    useCallback(() => setIsDrawerOpen(false), []),
-  );
-
-  const { targetNetwork } = useTargetNetwork();
-  const isLocalNetwork = targetNetwork.network === devnet.network;
-
-  const { provider } = useProvider();
-  const { address, status, chainId } = useAccount();
-  const { chain } = useNetwork();
-  const [isDeployed, setIsDeployed] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    if (
-      status === "connected" &&
-      address &&
-      chainId === targetNetwork.id &&
-      chain.network === targetNetwork.network
-    ) {
-      provider
-        .getClassHashAt(address)
-        .then((classHash) => {
-          if (classHash) setIsDeployed(true);
-          else setIsDeployed(false);
-        })
-        .catch((e) => {
-          console.error("contract check", e);
-          if (e.toString().includes("Contract not found")) {
-            setIsDeployed(false);
-          }
-        });
-    }
-  }, [
-    status,
-    address,
-    provider,
-    chainId,
-    targetNetwork.id,
-    targetNetwork.network,
-    chain.network,
-  ]);
+    const handleScroll = () => setScrolled(window.scrollY > 50);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveFeature((prev) => (prev + 1) % 4);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <div className=" lg:static top-0 navbar min-h-0 shrink-0 justify-between z-20 px-0 sm:px-2">
-      <div className="navbar-start w-auto lg:w-1/2 -mr-2">
-        <div className="lg:hidden dropdown" ref={burgerMenuRef}>
-          <label
-            tabIndex={0}
-            className={`ml-1 btn btn-ghost 
-              [@media(max-width:379px)]:px-3! [@media(max-width:379px)]:py-1! 
-              [@media(max-width:379px)]:h-9! [@media(max-width:379px)]:min-h-0!
-              [@media(max-width:379px)]:w-10!
-              ${isDrawerOpen ? "hover:bg-secondary" : "hover:bg-transparent"}`}
-            onClick={() => {
-              setIsDrawerOpen((prevIsOpenState) => !prevIsOpenState);
-            }}
-          >
-            <Bars3Icon className="h-1/2" />
-          </label>
-          {isDrawerOpen && (
-            <ul
-              tabIndex={0}
-              className="menu menu-compact dropdown-content mt-3 p-2 shadow-sm rounded-box w-52 bg-base-100"
-              onClick={() => {
-                setIsDrawerOpen(false);
-              }}
-            >
-              <HeaderMenuLinks />
-            </ul>
-          )}
-        </div>
-        <Link
-          href="/"
-          passHref
-          className="hidden lg:flex items-center gap-2 ml-4 mr-6 shrink-0"
-        >
-          <div className="flex relative w-10 h-10">
+    <nav
+      className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? "bg-slate-950/95 backdrop-blur-lg border-b border-purple-500/20" : ""}`}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16 sm:h-20">
+          <div className="flex items-center gap-3">
             <Image
-              alt="SE2 logo"
-              className="cursor-pointer"
-              fill
-              src="/logo.svg"
+              src="/BitYieldLogo.png"
+              alt="BitYield Logo"
+              width={40}
+              height={40}
+              className="rounded-xl"
             />
+            <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-orange-400 to-purple-400 bg-clip-text text-transparent">
+              BitYield
+            </span>
           </div>
-          <div className="flex flex-col">
-            <span className="font-bold leading-tight">Scaffold-Stark</span>
-            <span className="text-xs">Starknet dev stack</span>
+
+          {/* Desktop Menu */}
+          <div className="hidden md:flex items-center gap-8">
+            <a
+              href="#features"
+              className="hover:text-purple-400 transition-colors"
+            >
+              Features
+            </a>
+            <a
+              href="#how-it-works"
+              className="hover:text-purple-400 transition-colors"
+            >
+              How It Works
+            </a>
+            <a
+              href="#protocols"
+              className="hover:text-purple-400 transition-colors"
+            >
+              Protocols
+            </a>
+            <a
+              href="https://github.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-purple-400 transition-colors"
+            >
+              <Github className="w-5 h-5" />
+            </a>
+            <button
+              onClick={() => {
+                if (isConnected) {
+                  router.push("/yield");
+                } else {
+                  toast.error("Please connect your wallet to continue.");
+                }
+              }}
+              className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-purple-600 rounded-lg font-semibold hover:shadow-lg hover:shadow-purple-500/50 transition-all"
+            >
+              <span>Launch App</span>
+            </button>
+
+            <WalletConnectButton />
           </div>
-        </Link>
-        <ul className="hidden lg:flex lg:flex-nowrap menu menu-horizontal px-1 gap-2">
-          <HeaderMenuLinks />
-        </ul>
+
+          {/* Mobile Menu Button */}
+          <button
+            className="md:hidden p-2"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
+          </button>
+        </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden py-4 border-t border-purple-500/20">
+            <div className="flex flex-col gap-4">
+              <a
+                href="#features"
+                className="hover:text-purple-400 transition-colors"
+              >
+                Features
+              </a>
+              <a
+                href="#how-it-works"
+                className="hover:text-purple-400 transition-colors"
+              >
+                How It Works
+              </a>
+              <a
+                href="#protocols"
+                className="hover:text-purple-400 transition-colors"
+              >
+                Protocols
+              </a>
+              <button
+                onClick={() => {
+                  if (isConnected) {
+                    router.push("/yield");
+                  } else {
+                    toast.error("Please connect your wallet to continue.");
+                  }
+                }}
+                className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-purple-600 rounded-lg font-semibold"
+              >
+                <span>Launch App</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-      <div className="navbar-end grow mr-2 gap-4">
-        {status === "connected" && !isDeployed ? (
-          <span className="bg-[#8a45fc] text-[9px] p-1 text-white">
-            Wallet Not Deployed
-          </span>
-        ) : null}
-        <CustomConnectButton />
-        {/* <FaucetButton /> */}
-        <SwitchTheme
-          className={`pointer-events-auto ${
-            isLocalNetwork ? "mb-1 lg:mb-0" : ""
-          }`}
-        />
-      </div>
-    </div>
+    </nav>
   );
 };
