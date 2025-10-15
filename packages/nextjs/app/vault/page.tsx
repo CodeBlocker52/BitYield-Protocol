@@ -307,7 +307,7 @@ export default function VaultDashboard() {
               <a href="#" className="text-slate-400 hover:text-purple-400 transition-colors">
                 Documentation
               </a>
-              <a href="#" className="text-slate-400 hover:text-purple-400 transition-colors">
+              <a href="https://github.com/CodeBlocker52/BitYield-Protocol" className="text-slate-400 hover:text-purple-400 transition-colors">
                 GitHub
               </a>
               <a href="#" className="text-slate-400 hover:text-purple-400 transition-colors">

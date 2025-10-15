@@ -350,7 +350,7 @@ export default function BitYieldLanding() {
                 <a href="#" className="hover:text-purple-400 transition-colors">
                   Documentation
                 </a>
-                <a href="#" className="hover:text-purple-400 transition-colors">
+                <a href="https://github.com/CodeBlocker52/BitYield-Protocol" className="hover:text-purple-400 transition-colors">
                   GitHub
                 </a>
                 <a href="#" className="hover:text-purple-400 transition-colors">
@@ -369,7 +369,7 @@ export default function BitYieldLanding() {
                   <Twitter className="w-5 h-5" />
                 </a>
                 <a
-                  href="#"
+                  href="https://github.com/CodeBlocker52/BitYield-Protocol"
                   className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center hover:bg-purple-500/20 transition-colors"
                 >
                   <Github className="w-5 h-5" />

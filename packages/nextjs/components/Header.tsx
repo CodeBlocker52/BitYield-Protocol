@@ -132,7 +132,7 @@ export const Header = () => {
               Protocols
             </a>
             <a
-              href="https://github.com"
+              href="https://github.com/CodeBlocker52/BitYield-Protocol"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-purple-400 transition-colors"
