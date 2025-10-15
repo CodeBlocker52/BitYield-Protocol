@@ -94,6 +94,28 @@ BitYield provides:
 
 ---
 
+## 📝 Project Structure
+
+```
+BitYield-Protocol/
+├── packages/
+│   ├── nextjs/              # Frontend application
+│   │   ├── app/             # Next.js app router pages
+│   │   ├── components/      # React components
+│   │   ├── contracts/       # Contract ABIs and addresses
+│   │   └── public/          # Static assets
+│   │
+│   └── snfoundry/           # Smart contracts
+│       ├── contracts/       # Cairo contracts
+│       │   ├── src/         # Contract source code
+│       │   └── tests/       # Contract tests
+│       └── scripts-ts/      # Deployment scripts
+│
+├── .tool-versions           # asdf version specifications
+├── package.json             # Root package config
+└── README.md               # This file
+```
+
 ## 📦 Contract Architecture
 
 ### Core Contracts
@@ -657,27 +679,7 @@ yarn contracts:sync
 
 ---
 
-## 📝 Project Structure
 
-```
-BitYield-Protocol/
-├── packages/
-│   ├── nextjs/              # Frontend application
-│   │   ├── app/             # Next.js app router pages
-│   │   ├── components/      # React components
-│   │   ├── contracts/       # Contract ABIs and addresses
-│   │   └── public/          # Static assets
-│   │
-│   └── snfoundry/           # Smart contracts
-│       ├── contracts/       # Cairo contracts
-│       │   ├── src/         # Contract source code
-│       │   └── tests/       # Contract tests
-│       └── scripts-ts/      # Deployment scripts
-│
-├── .tool-versions           # asdf version specifications
-├── package.json             # Root package config
-└── README.md               # This file
-```
 
 ---
 
