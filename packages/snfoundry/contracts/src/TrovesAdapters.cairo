@@ -1,6 +1,14 @@
 use starknet::ContractAddress;
 
 #[starknet::interface]
+pub trait ITrovesStrategy<TContractState> {
+    fn deposit(ref self: TContractState, assets: u256) -> u256;
+    fn withdraw(ref self: TContractState, shares: u256, receiver: ContractAddress) -> u256;
+    fn balance_of(self: @TContractState, account: ContractAddress) -> u256;
+    fn total_assets(self: @TContractState) -> u256;
+}
+
+#[starknet::interface]
 pub trait ITrovesAdapter<TContractState> {
     fn add_strategy(ref self: TContractState, strategy_address: ContractAddress, weight: u32);
     fn remove_strategy(ref self: TContractState, strategy_id: u32);
@@ -19,10 +27,11 @@ pub trait ITrovesAdapter<TContractState> {
 
 #[starknet::contract]
 mod TrovesAdapter {
+    use super::{ITrovesStrategyDispatcher, ITrovesStrategyDispatcherTrait};
     use starknet::{ContractAddress, get_contract_address, get_caller_address};
     use core::num::traits::Zero;
     use openzeppelin_access::ownable::OwnableComponent;
-    use openzeppelin_token::erc20::interface::{IERC20Dispatcher};
+    use openzeppelin_token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
     use starknet::storage::{
         StoragePointerReadAccess, StoragePointerWriteAccess, Map, StoragePathEntry
     };
@@ -52,6 +61,7 @@ mod TrovesAdapter {
         total_assets_in_strategies: u256,
         active_strategies: Map<u32, StrategyConfig>,
         strategy_count: u32,
+        strategy_shares: Map<u32, u256>,
     }
 
     #[event]
@@ -107,7 +117,6 @@ mod TrovesAdapter {
     pub const STRATEGY_INACTIVE: felt252 = 'Strategy is inactive';
     pub const ZERO_ADDRESS: felt252 = 'Zero address not allowed';
     pub const ZERO_AMOUNT: felt252 = 'Amount must be greater than 0';
-    pub const NOT_IMPLEMENTED: felt252 = 'Function not yet implemented';
 
     #[constructor]
     fn constructor(
@@ -144,6 +153,12 @@ mod TrovesAdapter {
             self.active_strategies.entry(strategy_id).write(config);
             self.strategy_count.write(strategy_id + 1);
             
+            // Approve strategy to spend asset tokens
+            let asset_token = IERC20Dispatcher { contract_address: self.asset.read() };
+            let max_approval: u256 =
+                0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+            asset_token.approve(strategy_address, max_approval);
+            
             self.emit(StrategyAdded { strategy_id, strategy_address, weight });
         }
 
@@ -166,27 +181,30 @@ mod TrovesAdapter {
             let config = self.active_strategies.entry(strategy_id).read();
             assert!(config.is_active, "{}", STRATEGY_INACTIVE);
             
-            // TODO: Implement actual Troves deposit logic when contracts are available
-            // Example flow:
-            // 1. Transfer assets from vault to this adapter
-            // 2. Approve Troves contract to spend assets
-            // 3. Call Troves deposit function
-            // 4. Track deposited amount
+            let vault = self.vault.read();
+            let this = get_contract_address();
+            let asset_token = IERC20Dispatcher { contract_address: self.asset.read() };
             
-            // Placeholder implementation
-            let _vault = self.vault.read();
-            let _this = get_contract_address();
-            let _asset_token = IERC20Dispatcher { contract_address: self.asset.read() };
+            // 1. Transfer assets from vault to adapter
+            asset_token.transfer_from(vault, this, assets);
             
-            // Transfer from vault (would need approval first)
-            // asset_token.transfer_from(vault, this, assets);
+            // 2. Deposit into Troves strategy (adapter already approved in add_strategy)
+            let strategy = ITrovesStrategyDispatcher {
+                contract_address: config.strategy_address
+            };
+            let shares = strategy.deposit(assets);
             
+            // 3. Track shares received
+            let current_shares = self.strategy_shares.entry(strategy_id).read();
+            self.strategy_shares.entry(strategy_id).write(current_shares + shares);
+            
+            // 4. Update total assets
             let current_total = self.total_assets_in_strategies.read();
             self.total_assets_in_strategies.write(current_total + assets);
             
             self.emit(Deposited { strategy_id, assets });
             
-            assets // Return shares or receipt tokens
+            shares
         }
 
         fn withdraw(ref self: ContractState, strategy_id: u32, assets: u256) -> u256 {
@@ -196,26 +214,44 @@ mod TrovesAdapter {
             let config = self.active_strategies.entry(strategy_id).read();
             assert!(config.is_active, "{}", STRATEGY_INACTIVE);
             
-            // TODO: Implement actual Troves withdrawal logic
-            // Example flow:
-            // 1. Call Troves withdraw function
-            // 2. Receive assets back to adapter
-            // 3. Transfer assets to vault
-            // 4. Update tracked amounts
+            let vault = self.vault.read();
             
-            // Placeholder implementation
-            let _vault = self.vault.read();
-            let _asset_token = IERC20Dispatcher { contract_address: self.asset.read() };
+            // 1. Calculate shares needed for requested assets
+            let strategy = ITrovesStrategyDispatcher {
+                contract_address: config.strategy_address
+            };
+            let total_assets = strategy.total_assets();
+            let this = get_contract_address();
+            let total_shares = strategy.balance_of(this);
             
-            // Transfer to vault
-            // asset_token.transfer(vault, assets);
+            let shares_to_withdraw = if total_assets == 0 {
+                0
+            } else {
+                (assets * total_shares) / total_assets
+            };
             
+            // 2. Withdraw from Troves strategy (sends assets directly to vault)
+            let actual_assets = strategy.withdraw(shares_to_withdraw, vault);
+            
+            // 3. Update tracked shares
+            let current_shares = self.strategy_shares.entry(strategy_id).read();
+            if shares_to_withdraw <= current_shares {
+                self.strategy_shares.entry(strategy_id).write(current_shares - shares_to_withdraw);
+            } else {
+                self.strategy_shares.entry(strategy_id).write(0);
+            }
+            
+            // 4. Update total assets
             let current_total = self.total_assets_in_strategies.read();
-            self.total_assets_in_strategies.write(current_total - assets);
+            if actual_assets <= current_total {
+                self.total_assets_in_strategies.write(current_total - actual_assets);
+            } else {
+                self.total_assets_in_strategies.write(0);
+            }
             
-            self.emit(Withdrawn { strategy_id, assets });
+            self.emit(Withdrawn { strategy_id, assets: actual_assets });
             
-            assets
+            actual_assets
         }
 
         fn harvest_rewards(ref self: ContractState, strategy_id: u32) -> u256 {
@@ -224,32 +260,64 @@ mod TrovesAdapter {
             let config = self.active_strategies.entry(strategy_id).read();
             assert!(config.is_active, "{}", STRATEGY_INACTIVE);
             
-            // TODO: Implement reward harvesting
-            // Example flow:
-            // 1. Call Troves claim_rewards
-            // 2. Swap rewards to WBTC (if needed)
-            // 3. Compound back into strategy or return to vault
+            // Query current balance to see yield growth
+            let this = get_contract_address();
+            let strategy = ITrovesStrategyDispatcher {
+                contract_address: config.strategy_address
+            };
             
-            let reward_amount: u256 = 0; // Placeholder
-            
-            self.emit(RewardsHarvested { strategy_id, reward_amount });
-            
-            reward_amount
-        }
-
-        fn get_total_assets(self: @ContractState) -> u256 {
-            // TODO: Query actual balances from Troves contracts
-            self.total_assets_in_strategies.read()
-        }
-
-        fn get_strategy_balance(self: @ContractState, strategy_id: u32) -> u256 {
-            let config = self.active_strategies.entry(strategy_id).read();
-            if !config.is_active {
+            let shares = strategy.balance_of(this);
+            if shares == 0 {
                 return 0;
             }
             
-            // TODO: Query actual balance from Troves contract
-            0 // Placeholder
+            // Calculate total value including yield
+            let total_strategy_assets = strategy.total_assets();
+            let our_shares = shares;
+            let total_shares_in_strategy = shares; 
+            
+            let current_value = if total_shares_in_strategy == 0 {
+                0
+            } else {
+                (our_shares * total_strategy_assets) / total_shares_in_strategy
+            };
+            
+            // Calculate yield earned 
+            let tracked_total = self.total_assets_in_strategies.read();
+            let yield_earned = if current_value > tracked_total {
+                current_value - tracked_total
+            } else {
+                0
+            };
+            
+            // Update tracked total to include yield
+            if yield_earned > 0 {
+                self.total_assets_in_strategies.write(current_value);
+            }
+            
+            self.emit(RewardsHarvested { strategy_id, reward_amount: yield_earned });
+            
+            yield_earned
+        }
+
+        fn get_total_assets(self: @ContractState) -> u256 {
+            let mut total: u256 = 0;
+            let count = self.strategy_count.read();
+            
+            let mut i: u32 = 0;
+            while i < count {
+                let config = self.active_strategies.entry(i).read();
+                if config.is_active {
+                    total += self._get_strategy_balance(i);
+                }
+                i += 1;
+            };
+            
+            total
+        }
+
+        fn get_strategy_balance(self: @ContractState, strategy_id: u32) -> u256 {
+            self._get_strategy_balance(strategy_id)
         }
 
         fn get_active_strategies(self: @ContractState) -> Array<u32> {
@@ -286,6 +354,33 @@ mod TrovesAdapter {
             let caller = get_caller_address();
             let vault = self.vault.read();
             assert!(caller == vault, "{}", UNAUTHORIZED);
+        }
+
+        fn _get_strategy_balance(self: @ContractState, strategy_id: u32) -> u256 {
+            let config = self.active_strategies.entry(strategy_id).read();
+            if !config.is_active {
+                return 0;
+            }
+            
+            let this = get_contract_address();
+            let strategy = ITrovesStrategyDispatcher {
+                contract_address: config.strategy_address
+            };
+            
+            let shares = strategy.balance_of(this);
+            if shares == 0 {
+                return 0;
+            }
+            
+            // Calculate asset value of shares
+            let total_strategy_assets = strategy.total_assets();
+            let total_shares = shares; 
+            
+            if total_shares == 0 {
+                0
+            } else {
+                (shares * total_strategy_assets) / total_shares
+            }
         }
     }
 }

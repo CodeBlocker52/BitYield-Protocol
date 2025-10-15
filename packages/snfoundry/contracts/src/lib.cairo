@@ -26,5 +26,5 @@ pub mod mocks {
     pub mod MockWBTC;
     pub mod MockVToken;
     pub mod MockAtomiqGateway;
+    pub mod MockTrovesStrategy;
 }
-
