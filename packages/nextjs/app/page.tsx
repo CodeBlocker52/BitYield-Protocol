@@ -64,9 +64,9 @@ export default function BitYieldLanding() {
   ];
 
   const stats = [
-    { label: "Total Value Locked", value: "$12.4M", suffix: "" },
-    { label: "Average APY", value: "18.5", suffix: "%" },
-    { label: "Active Users", value: "2,847", suffix: "" },
+    { label: "Total Value Locked", value: "$5.4M", suffix: "" },
+    { label: "Average APY", value: "7.5", suffix: "%" },
+    { label: "Active Users", value: "28", suffix: "" },
     { label: "Protocols Integrated", value: "3", suffix: "+" },
   ];
 

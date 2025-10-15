@@ -6,11 +6,13 @@ import { ChatArea } from "~~/components/chat/ChatArea";
 import WalletConnectButton from "~~/components/wallet/WalletConnectButton";
 import Image from "next/image";
 import { useAccount } from "@starknet-react/core";
+import { useRouter } from "next/navigation";
 
 export default function YieldPage() {
   const agent = useAgent();
   const { isConnected } = useAccount();
   const [inputMessage, setInputMessage] = useState("");
+  const router = useRouter();
 
   const handleSuggestionClick = async (action: string) => {
     // Map actions to messages
@@ -38,7 +40,7 @@ export default function YieldPage() {
       <header className="border-b border-slate-800 bg-slate-950/50 backdrop-blur-lg">
         <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div onClick={() => router.push("/")} className="flex items-center gap-4">
               <Image
                 src="/BitYieldLogo.png"
                 alt="BitYield Logo"
@@ -65,11 +67,11 @@ export default function YieldPage() {
             <div className="flex items-center gap-6">
               <div className="hidden md:flex items-center gap-6">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-purple-400">18.5%</p>
+                  <p className="text-2xl font-bold text-purple-400">7.5%</p>
                   <p className="text-xs text-slate-500">Current APY</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-orange-400">$12.4M</p>
+                  <p className="text-2xl font-bold text-orange-400">$5.4M</p>
                   <p className="text-xs text-slate-500">TVL</p>
                 </div>
               </div>

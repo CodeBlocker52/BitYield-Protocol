@@ -6,26 +6,26 @@ import { Header } from '~~/components/Header';
 
 // Mock data - replace with real data from hooks
 const VAULT_DATA = {
-  tvl: 12400000,
+  tvl: 5400000,
   yourHoldings: 0,
-  apy: 18.5,
+  apy: 7.5,
   strategies: [
     {
       id: 1,
       name: 'WBTC Evergreen',
       protocol: 'BitYield',
       icon: '₿',
-      apy: 18.5,
+      apy: 7.5,
       risk: 'low',
-      tvl: 12400000,
+      tvl: 5400000,
       allocation: 100,
       verified: true,
       description: 'Optimized WBTC yield across Vesu lending and Troves staking'
     }
   ],
   allocations: [
-    { name: 'Vesu Lending', percentage: 30, apy: 12.3, amount: 3720000 },
-    { name: 'Troves Staking', percentage: 70, apy: 26.8, amount: 8680000 }
+    { name: 'Vesu Lending', percentage: 30, apy: 5.3, amount: 3720000 },
+    { name: 'Troves Staking', percentage: 70, apy: 8.8, amount: 8680000 }
   ]
 };
 
@@ -82,7 +82,7 @@ export default function VaultDashboard() {
             </div>
             <div className="flex items-center gap-1 text-green-400 text-sm">
               <ArrowUpRight className="w-4 h-4" />
-              <span>+12.5% this month</span>
+              <span>+5.5% this month</span>
             </div>
           </div>
 
