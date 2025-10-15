@@ -21,10 +21,7 @@ pub trait IVesuVToken<TContractState> {
     fn convert_to_assets(self: @TContractState, shares: u256) -> u256;
     fn deposit(ref self: TContractState, assets: u256, receiver: ContractAddress) -> u256;
     fn withdraw(
-        ref self: TContractState,
-        assets: u256,
-        receiver: ContractAddress,
-        owner: ContractAddress
+        ref self: TContractState, assets: u256, receiver: ContractAddress, owner: ContractAddress,
     ) -> u256;
     fn max_withdraw(self: @TContractState, owner: ContractAddress) -> u256;
     fn balance_of(self: @TContractState, account: ContractAddress) -> u256;
@@ -32,14 +29,14 @@ pub trait IVesuVToken<TContractState> {
 
 #[starknet::contract]
 mod VesuAdapter {
-    use super::{IVesuVTokenDispatcher, IVesuVTokenDispatcherTrait};
-    use starknet::{ContractAddress, get_contract_address, get_caller_address};
     use core::num::traits::Zero;
     use openzeppelin_access::ownable::OwnableComponent;
     use openzeppelin_token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
     use starknet::storage::{
-        StoragePointerReadAccess, StoragePointerWriteAccess, Map, StoragePathEntry
+        Map, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess,
     };
+    use starknet::{ContractAddress, get_caller_address, get_contract_address};
+    use super::{IVesuVTokenDispatcher, IVesuVTokenDispatcherTrait};
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
 
@@ -127,20 +124,21 @@ mod VesuAdapter {
         fn add_pool(ref self: ContractState, pool_id: felt252, v_token: ContractAddress) {
             self.ownable.assert_only_owner();
             assert!(!v_token.is_zero(), "{}", ZERO_ADDRESS);
-            
+
             let existing_v_token = self.vesu_v_tokens.entry(pool_id).read();
             assert!(existing_v_token.is_zero(), "{}", POOL_EXISTS);
-            
+
             self.vesu_v_tokens.entry(pool_id).write(v_token);
             let index = self.pool_count.read();
             self.active_pool_ids.entry(index).write(pool_id);
             self.pool_count.write(index + 1);
-            
+
             // Approve v_token to spend asset (max approval)
             let asset_token = IERC20Dispatcher { contract_address: self.asset.read() };
-            let max_approval: u256 = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+            let max_approval: u256 =
+                0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
             asset_token.approve(v_token, max_approval);
-            
+
             self.emit(PoolAdded { pool_id, v_token });
         }
 
@@ -148,37 +146,47 @@ mod VesuAdapter {
             self.ownable.assert_only_owner();
             let v_token = self.vesu_v_tokens.entry(pool_id).read();
             assert!(!v_token.is_zero(), "{}", POOL_NOT_FOUND);
-            
+
             // Ensure no assets in this pool
             let balance = self._get_pool_balance(pool_id);
             assert!(balance == 0, "{}", INSUFFICIENT_BALANCE);
-            
+
             self.vesu_v_tokens.entry(pool_id).write(Zero::zero());
             self.emit(PoolRemoved { pool_id });
         }
 
         fn deposit(ref self: ContractState, pool_id: felt252, assets: u256) -> u256 {
-            self._assert_vault_caller();
+            let caller = get_caller_address();
+            let vault = self.vault.read();
+            let is_vault = caller == vault;
+            let is_owner = caller == self.ownable.owner();
+            assert!(is_vault || is_owner, "{}", UNAUTHORIZED);
             assert!(assets > 0, "{}", ZERO_AMOUNT);
-            
+
             let v_token_address = self.vesu_v_tokens.entry(pool_id).read();
             assert!(!v_token_address.is_zero(), "{}", POOL_NOT_FOUND);
-            
-            let vault = self.vault.read();
+
             let this = get_contract_address();
-            
-            // Transfer assets from vault to this adapter
             let asset_token = IERC20Dispatcher { contract_address: self.asset.read() };
-            let success = asset_token.transfer_from(vault, this, assets);
-            assert!(success, "{}", TRANSFER_FAILED);
-            
+
+            // Transfer assets based on caller
+            if is_vault {
+                // If vault is calling, pull from vault
+                let success = asset_token.transfer_from(vault, this, assets);
+                assert!(success, "{}", TRANSFER_FAILED);
+            } else {
+                // If owner is calling directly, pull from owner
+                let success = asset_token.transfer_from(caller, this, assets);
+                assert!(success, "{}", TRANSFER_FAILED);
+            }
+
             // Deposit into Vesu vToken
             let v_token = IVesuVTokenDispatcher { contract_address: v_token_address };
             let shares = v_token.deposit(assets, this);
-            
+
             let current_total = self.total_shares.read();
             self.total_shares.write(current_total + shares);
-            
+
             self.emit(Deposited { pool_id, assets, shares });
             shares
         }
@@ -186,44 +194,44 @@ mod VesuAdapter {
         fn withdraw(ref self: ContractState, pool_id: felt252, assets: u256) -> u256 {
             self._assert_vault_caller();
             assert!(assets > 0, "{}", ZERO_AMOUNT);
-            
+
             let v_token_address = self.vesu_v_tokens.entry(pool_id).read();
             assert!(!v_token_address.is_zero(), "{}", POOL_NOT_FOUND);
-            
+
             let vault = self.vault.read();
             let this = get_contract_address();
-            
+
             // Withdraw from Vesu vToken
             let v_token = IVesuVTokenDispatcher { contract_address: v_token_address };
             let shares = v_token.withdraw(assets, vault, this);
-            
+
             let current_total = self.total_shares.read();
             self.total_shares.write(current_total - shares);
-            
+
             self.emit(Withdrawn { pool_id, assets, shares });
             shares
         }
 
         fn withdraw_all(ref self: ContractState, pool_id: felt252) -> u256 {
             self._assert_vault_caller();
-            
+
             let v_token_address = self.vesu_v_tokens.entry(pool_id).read();
             assert!(!v_token_address.is_zero(), "{}", POOL_NOT_FOUND);
-            
+
             let this = get_contract_address();
             let vault = self.vault.read();
-            
+
             let v_token = IVesuVTokenDispatcher { contract_address: v_token_address };
             let max_withdraw = v_token.max_withdraw(this);
-            
+
             if max_withdraw == 0 {
                 return 0;
             }
-            
+
             let shares = v_token.withdraw(max_withdraw, vault, this);
             let current_total = self.total_shares.read();
             self.total_shares.write(current_total - shares);
-            
+
             self.emit(Withdrawn { pool_id, assets: max_withdraw, shares });
             max_withdraw
         }
@@ -231,19 +239,19 @@ mod VesuAdapter {
         fn get_total_assets(self: @ContractState) -> u256 {
             let mut total: u256 = 0;
             let count = self.pool_count.read();
-            
+
             let mut i: u32 = 0;
             while i < count {
                 let pool_id = self.active_pool_ids.entry(i).read();
                 let v_token = self.vesu_v_tokens.entry(pool_id).read();
-                
+
                 if !v_token.is_zero() {
                     total += self._get_pool_balance(pool_id);
                 }
-                
+
                 i += 1;
-            };
-            
+            }
+
             total
         }
 
@@ -254,19 +262,19 @@ mod VesuAdapter {
         fn get_active_pools(self: @ContractState) -> Array<felt252> {
             let mut pools: Array<felt252> = ArrayTrait::new();
             let count = self.pool_count.read();
-            
+
             let mut i: u32 = 0;
             while i < count {
                 let pool_id = self.active_pool_ids.entry(i).read();
                 let v_token = self.vesu_v_tokens.entry(pool_id).read();
-                
+
                 if !v_token.is_zero() {
                     pools.append(pool_id);
                 }
-                
+
                 i += 1;
-            };
-            
+            }
+
             pools
         }
 
@@ -288,11 +296,11 @@ mod VesuAdapter {
             if v_token_address.is_zero() {
                 return 0;
             }
-            
+
             let this = get_contract_address();
             let v_token = IVesuVTokenDispatcher { contract_address: v_token_address };
             let shares = v_token.balance_of(this);
-            
+
             if shares == 0 {
                 0
             } else {
