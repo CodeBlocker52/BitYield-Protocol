@@ -12,10 +12,11 @@ Bitcoin holders cannot easily access DeFi yields without:
 - Manually wrapping BTC to WBTC
 - Navigating multiple DeFi protocols
 - Managing rebalancing strategies
+As a result ,Billions of Bitcoin capital remains unused and untapped in Defi.
 
 ### Solution
 BitYield provides:
-- **One-click Bitcoin deposits** via Atomiq integration
+- **AI Powered Bitcoin deposits** via Atomiq integration
 - **Automatic WBTC conversion** on Starknet
 - **Yield optimization** across Vesu lending markets and Troves strategies
 - **Automated rebalancing** via Cairo smart contracts
@@ -32,7 +33,7 @@ BitYield provides:
 │                   Frontend (React + Starknet.js)         │
 │            Xverse Wallet + Atomiq SDK Integration        │
 └────────────────┬────────────────────────────────────────┘
-                 │
+                 │AI Agent (LangGraph AGENT)
                  ▼
 ┌─────────────────────────────────────────────────────────┐
 │              Atomiq Bridge Layer (BTC → WBTC)           │
@@ -694,8 +695,8 @@ MIT License - see [LICENSE](LICENSE) file for details
 - **Starknet**: [starknet.io](https://starknet.io)
 - **Scaffold-Stark 2**: [github.com/Scaffold-Stark/scaffold-stark-2](https://github.com/Scaffold-Stark/scaffold-stark-2)
 - **Vesu Protocol**: [vesu.xyz](https://vesu.xyz)
-- **Troves Protocol**: [troves.app](https://troves.app)
-- **Atomiq Bridge**: [atomiq.io](https://atomiq.io)
+- **Troves Protocol**: [troves.app](https://www.troves.fi/)
+- **Atomiq Bridge**: [atomiq.io](https://app.atomiq.exchange/)
 - **Cairo Book**: [cairo-book.github.io](https://cairo-book.github.io)
 - **Starknet Foundry**: [foundry-rs.github.io/starknet-foundry](https://foundry-rs.github.io/starknet-foundry/)
 
@@ -727,5 +728,5 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ---
 
-**Built with ❤️ on Starknet using Scaffold-Stark 2**
+**Built with ❤️ on Starknet for Starknet Re{Solve} Hackathon 2025**
 
